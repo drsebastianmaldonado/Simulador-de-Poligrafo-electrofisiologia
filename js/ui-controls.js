@@ -15,16 +15,6 @@ export function buildLabelsAndLegend(){
   labelsCol.innerHTML = '<div class="ruler-spacer"></div>' + CHANNELS.map(ch =>
     `<div class="chan-label"><span class="swatch" style="background:${ch.color}"></span>${ch.label}</div>`
   ).join('');
-
-  const legendHost = document.getElementById('legendHost');
-  legendHost.innerHTML = `
-    <span><i style="background:#e9e9e9"></i>Superficie (D1, D2, V1)</span>
-    <span><i style="background:#ffb020"></i>Catéter de ablación</span>
-    <span><i style="background:#35c9f0"></i>Catéter de seno coronario</span>
-    <span><i style="background:#ff4d6d"></i>Catéter VD</span>
-    <span><i style="background:#c9a0ff"></i>Catéter aurícula derecha alta (AD alta)</span>
-    <span><i style="background:#ffd166"></i>Espiga de estimulación</span>
-  `;
 }
 
 export function centerOnMonitor(){
@@ -241,7 +231,7 @@ export function updateReadout(beats){
       const p = getPacingParams();
       const r = buildEntrainmentBeats(p, 1);
       if (!r.ready){
-        box.innerHTML = `TRNAV basal (TCL ${Math.round(r.TCL)} ms). Programá arriba, en "Modo de estimulación": Sitio = VD apical o basal, y Ciclo S1 &lt; ${Math.round(r.TCL)} ms, para encarrilar.`;
+        box.innerHTML = `TRNAV basal (TCL ${Math.round(r.TCL)} ms). Programá arriba, en "Polígrafo": Sitio = VD apical o basal, y más abajo, en "Modo de estimulación": Ciclo S1 &lt; ${Math.round(r.TCL)} ms, para encarrilar.`;
         return;
       }
       box.innerHTML = `<strong>Entrainment desde VD</strong> — TCL basal ${Math.round(r.TCL)} ms · CL de estimulación ${Math.round(r.entrainCL)} ms (programado por vos) · QRS estimulado puro (misma morfología angosta) · VA estirado 30 ms durante la estimulación · tren de 6 latidos · PPI ${Math.round(r.PPI)} ms → <strong>PPI − TCL = ${Math.round(r.ppiMinusTCL)} ms</strong> (${r.ppiMinusTCL>125 ? 'compatible' : 'no compatible'}: debe dar > 125 ms).`;
@@ -295,7 +285,7 @@ export function stepInput(id, delta){
   if (!isNaN(min)) v = Math.max(min, v);
   if (!isNaN(max)) v = Math.min(max, v);
   el.value = v;
-  onCycleParamChange();
+  onCycleParamChange(id);
 }
 export function applyS1InductionCLChange(){
   const cl = +document.getElementById('s1InductionCL').value;
@@ -310,11 +300,17 @@ export function applyS2InduceField(){
   document.getElementById('s2').value = field.value;
   onCycleParamChange();
 }
-export function onCycleParamChange(){
+export function onCycleParamChange(fieldId){
   // Con el modelo de barrido por vueltas, un cambio de S1/S2 se aplica solo en la próxima vuelta si
   // no se fuerza — pero mientras se está reproduciendo (por ejemplo, ajustando la velocidad de
   // sobreestimulación en vivo), lo aplicamos ya mismo, sin resetear el cursor ni reiniciar el polígrafo.
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true; // cambiar S2 a propósito SÍ cuenta como una nueva entrega
+  // Mientras se está estimulando, centrar el trazado en pantalla al tocar el ciclo que rige el modo
+  // activo (S1 en asincrónica, S2 en sincrónica), para que el efecto del ajuste quede siempre a la vista.
+  if (state.STIMULATING && (
+    (fieldId === 's1cl' && state.activeMode === 'ASYNC') ||
+    (fieldId === 's2' && state.activeMode === 'SYNC')
+  )) centerOnMonitor();
   if (state.SENSING_MODE || !state.playing){ renderAll(); return; } // Sensado: el S2 es un evento único —
                                                                      // siempre se vuelve a mostrar completo desde el inicio.
   rebuildLap();

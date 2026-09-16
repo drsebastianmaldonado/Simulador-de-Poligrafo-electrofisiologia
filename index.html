@@ -29,80 +29,6 @@
       </div>
     </div>
   </div>
-
-  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin:14px 0 8px; border-top:1px dashed var(--line); padding-top:12px;">Modo de estimulación</div>
-  <div class="row">
-    <div class="field">
-      <div class="radiogroup">
-        <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
-        <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
-      </div>
-    </div>
-  </div>
-  <div class="row" style="flex-direction:row; gap:8px;">
-    <div class="field" style="flex-direction:row; gap:8px;">
-      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
-      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
-    </div>
-  </div>
-  <div class="row" style="margin-top:8px;">
-    <div class="field">
-      <div class="radiogroup">
-        <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
-        <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
-      </div>
-    </div>
-  </div>
-
-  <div class="row" style="margin-top:12px;">
-    <div class="field" id="s1clRow">
-      <label>Ciclo S1</label>
-      <div class="stepper-row">
-        <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
-        <div class="stepper-btns">
-          <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
-          <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
-        </div>
-      </div>
-    </div>
-    <div class="field" id="nbeatsRow">
-      <label>Nº de S1 (tren)</label>
-      <input type="number" id="nbeats" min="3" max="15" value="8">
-    </div>
-    <div class="field" id="s2row" style="display:none;">
-      <label>Extraestímulo S2 — 9° latido</label>
-      <div class="stepper-row">
-        <input type="number" id="s2" min="150" max="700" step="10" value="400">
-        <div class="stepper-btns">
-          <button type="button" class="stepbtn" onclick="stepInput('s2',10)">▲</button>
-          <button type="button" class="stepbtn" onclick="stepInput('s2',-10)">▼</button>
-        </div>
-      </div>
-    </div>
-    <div class="field">
-      <label>Velocidad del trazado</label>
-      <select id="zoom" onchange="renderAll()">
-        <option value="25">25 mm/s</option>
-        <option value="50" selected>50 mm/s</option>
-        <option value="100">100 mm/s</option>
-        <option value="150">150 mm/s</option>
-        <option value="200">200 mm/s</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Velocidad de reproducción</label>
-      <select id="speed" onchange="">
-        <option value="0.25">0.25×</option>
-        <option value="0.5" selected>0.5×</option>
-        <option value="0.75">0.75×</option>
-      </select>
-    </div>
-    <div class="field" style="justify-content:flex-end; flex-direction:row; gap:8px;">
-      <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
-      <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
-      <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
-    </div>
-  </div>
 </div>
 
 <div class="panel">
@@ -133,7 +59,7 @@
     </div>
     <div class="field" id="entrainParamsRow" style="display:none; flex-basis:100%; gap:16px; flex-direction:row; flex-wrap:wrap;">
       <div class="field" style="flex-basis:100%;">
-        <label style="color:var(--dim); font-size:.72rem;">Programá el "Ciclo S1" y el "Sitio de estimulación" (VD apical o basal) arriba, en Modo de estimulación — eso es lo que se usa para encarrilar.</label>
+        <label style="color:var(--dim); font-size:.72rem;">Programá el "Sitio de estimulación" (VD apical o basal) arriba, en Polígrafo, y el "Ciclo S1" más abajo, en Modo de estimulación — eso es lo que se usa para encarrilar.</label>
       </div>
       <div class="field">
         <label>PPI − TCL esperado (ms)</label>
@@ -148,7 +74,7 @@
     </div>
     <div class="field" id="hisRefrParamsRow" style="display:none; flex-basis:100%; gap:16px; flex-direction:row; flex-wrap:wrap;">
       <div class="field" style="flex-basis:100%;">
-        <label style="color:var(--dim); font-size:.72rem;">Programá el "Sitio de estimulación" (VD apical o basal) arriba, en Modo de estimulación. Los primeros 8 latidos son sensados, no estimulados.</label>
+        <label style="color:var(--dim); font-size:.72rem;">Programá el "Sitio de estimulación" (VD apical o basal) arriba, en Polígrafo. Los primeros 8 latidos son sensados, no estimulados.</label>
       </div>
       <div class="field">
         <label>S2 (ms)</label>
@@ -248,11 +174,80 @@
   </div>
 </div>
 
-<div class="legend" id="legendHost"></div>
+<div class="panel">
+  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Modo de estimulación</div>
+  <div class="row">
+    <div class="field">
+      <div class="radiogroup">
+        <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
+        <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
+      </div>
+    </div>
+  </div>
+  <div class="row" style="flex-direction:row; gap:8px;">
+    <div class="field" style="flex-direction:row; gap:8px;">
+      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
+      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
+    </div>
+  </div>
+  <div class="row" style="margin-top:8px;">
+    <div class="field">
+      <div class="radiogroup">
+        <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
+        <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
+      </div>
+    </div>
+  </div>
 
-<div class="notes">
-  <b>Convenciones:</b> A = activación auricular local · H = deflexión hisiana · V = activación ventricular local. Espiga amarilla = artefacto de estimulación. Anotaciones verdes/rosadas junto al extraestímulo = intervalos medidos (AH·HV o VH·HA).<br>
-  <b>Simplificaciones del modelo:</b> conducción AV decremental sólo a nivel del nodo AV (HV fijo, no decremental); por debajo de 150&nbsp;ms se asume falla de captura miocárdica local; secuencia de activación del catéter de CS asumida próximal→distal en sentido anterógrado y retrógrado; sin fenómeno de doble vía nodal ni preexcitación en este escenario.
+  <div class="row" style="margin-top:12px;">
+    <div class="field" id="s1clRow">
+      <label>Ciclo S1</label>
+      <div class="stepper-row">
+        <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
+        <div class="stepper-btns">
+          <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
+          <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field" id="nbeatsRow">
+      <label>Nº de S1 (tren)</label>
+      <input type="number" id="nbeats" min="3" max="15" value="8">
+    </div>
+    <div class="field" id="s2row" style="display:none;">
+      <label>Extraestímulo S2 — 9° latido</label>
+      <div class="stepper-row">
+        <input type="number" id="s2" min="150" max="700" step="10" value="400">
+        <div class="stepper-btns">
+          <button type="button" class="stepbtn" onclick="stepInput('s2',10)">▲</button>
+          <button type="button" class="stepbtn" onclick="stepInput('s2',-10)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Velocidad del trazado</label>
+      <select id="zoom" onchange="renderAll()">
+        <option value="25">25 mm/s</option>
+        <option value="50" selected>50 mm/s</option>
+        <option value="100">100 mm/s</option>
+        <option value="150">150 mm/s</option>
+        <option value="200">200 mm/s</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Velocidad de reproducción</label>
+      <select id="speed" onchange="">
+        <option value="0.25">0.25×</option>
+        <option value="0.5" selected>0.5×</option>
+        <option value="0.75">0.75×</option>
+      </select>
+    </div>
+    <div class="field" style="justify-content:flex-end; flex-direction:row; gap:8px;">
+      <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
+      <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
+      <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="js/main.js"></script>
