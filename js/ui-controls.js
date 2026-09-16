@@ -17,11 +17,6 @@ export function buildLabelsAndLegend(){
   ).join('');
 }
 
-export function centerOnMonitor(){
-  const mainTrace = document.getElementById('traceScrollMain');
-  const scope = mainTrace ? mainTrace.closest('.scope') : null;
-  if (scope && scope.scrollIntoView) scope.scrollIntoView({behavior:'smooth', block:'center'});
-}
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
   if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE){
@@ -31,7 +26,6 @@ export function startStimulation(){
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true;
   state.STIMULATING = true;
   renderAll();
-  centerOnMonitor();
 }
 export function stopStimulation(){
   // Termina la estimulación en curso y vuelve al ritmo sinusal basal.
@@ -285,7 +279,7 @@ export function stepInput(id, delta){
   if (!isNaN(min)) v = Math.max(min, v);
   if (!isNaN(max)) v = Math.min(max, v);
   el.value = v;
-  onCycleParamChange(id);
+  onCycleParamChange();
 }
 export function applyS1InductionCLChange(){
   const cl = +document.getElementById('s1InductionCL').value;
@@ -300,17 +294,11 @@ export function applyS2InduceField(){
   document.getElementById('s2').value = field.value;
   onCycleParamChange();
 }
-export function onCycleParamChange(fieldId){
+export function onCycleParamChange(){
   // Con el modelo de barrido por vueltas, un cambio de S1/S2 se aplica solo en la próxima vuelta si
   // no se fuerza — pero mientras se está reproduciendo (por ejemplo, ajustando la velocidad de
   // sobreestimulación en vivo), lo aplicamos ya mismo, sin resetear el cursor ni reiniciar el polígrafo.
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true; // cambiar S2 a propósito SÍ cuenta como una nueva entrega
-  // Mientras se está estimulando, centrar el trazado en pantalla al tocar el ciclo que rige el modo
-  // activo (S1 en asincrónica, S2 en sincrónica), para que el efecto del ajuste quede siempre a la vista.
-  if (state.STIMULATING && (
-    (fieldId === 's1cl' && state.activeMode === 'ASYNC') ||
-    (fieldId === 's2' && state.activeMode === 'SYNC')
-  )) centerOnMonitor();
   if (state.SENSING_MODE || !state.playing){ renderAll(); return; } // Sensado: el S2 es un evento único —
                                                                      // siempre se vuelve a mostrar completo desde el inicio.
   rebuildLap();

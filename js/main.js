@@ -29,4 +29,4 @@ renderAll();
 document.querySelectorAll('input[name=site]').forEach(el=>el.addEventListener('change', renderAll));
 document.querySelectorAll('#sinusCL,#ah0,#hv0,#erp,#va0,#verp,#wenckAnt,#wenckRetro,#jumpEnabled,#jumpRetroEnabled,#jumpRetroCL,#s1InductionEnabled,#s1InductionCL').forEach(el=>el.addEventListener('change', renderAll));
 document.getElementById('jumpCL').addEventListener('change', () => { applyS2InduceField(); renderAll(); });
-document.querySelectorAll('#s1cl,#s2').forEach(el=>el.addEventListener('change', () => onCycleParamChange(el.id)));
+document.querySelectorAll('#s1cl,#s2').forEach(el=>el.addEventListener('change', onCycleParamChange));
