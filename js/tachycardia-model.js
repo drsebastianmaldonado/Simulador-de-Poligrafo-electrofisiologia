@@ -623,7 +623,12 @@ export function buildTachyCutAtInstant(type, cycleMs, upToMs, stopAtMs){
   // Genera la taquicardia sostenida (TRNAV o TRAV) normalmente hasta el instante del corte, y
   // continúa con ritmo sinusal desde ahí — sin reiniciar el polígrafo ni mostrar latidos residuales.
   const beats = buildTachyBeats(type, cycleMs, stopAtMs);
-  let ts = stopAtMs;
+  // El primer latido sinusal respeta el ciclo sinusal desde el último latido ya mostrado — no
+  // arranca pegado al instante exacto del clic, que podría caer justo después de ese latido y
+  // mostrar dos latidos casi simultáneos.
+  const last = beats[beats.length-1];
+  const lastT = last ? (last.ta ?? last.th ?? last.tv ?? stopAtMs) : stopAtMs;
+  let ts = Math.max(stopAtMs, lastT + state.CTX.sinusCL);
   while (ts < upToMs){ beats.push(makeAtrialBeat(ts, state.CTX.sinusCL, false, 'Sinus')); ts += state.CTX.sinusCL; }
   return beats;
 }
@@ -634,7 +639,11 @@ export function buildAsyncCutAtInstant(p, upToMs, stopAtMs){
     const t0 = b.stimTime ?? b.ta ?? b.tv;
     return t0 != null && t0 < stopAtMs;
   });
-  let ts = stopAtMs;
+  // Igual que arriba: el primer latido sinusal espera un ciclo sinusal completo desde el último
+  // latido estimulado ya mostrado, para no caer casi encima de él.
+  const last = beats[beats.length-1];
+  const lastT = last ? (last.stimTime ?? last.ta ?? last.tv ?? stopAtMs) : stopAtMs;
+  let ts = Math.max(stopAtMs, lastT + state.CTX.sinusCL);
   while (ts < upToMs){ beats.push(makeAtrialBeat(ts, state.CTX.sinusCL, false, 'Sinus')); ts += state.CTX.sinusCL; }
   return beats;
 }
