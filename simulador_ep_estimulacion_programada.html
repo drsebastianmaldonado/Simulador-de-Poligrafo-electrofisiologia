@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de estudio electrofisiológico — Estimulación programada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #05070a;
+    --panel: #0d1216;
+    --panel2: #10171b;
+    --line: #1c262b;
+    --text: #d7dee0;
+    --dim: #6f8288;
+    --accent: #ffb020;
+    --accent2: #35c9f0;
+    --ok: #6fdc9a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    padding:14px 14px 40px;
+  }
+  h1{
+    font-size:1.05rem; font-weight:600; margin:0 0 2px; color:#f0f3f4; letter-spacing:.01em;
+  }
+  .subtitle{ font-size:.78rem; color:var(--dim); margin:0 0 14px; line-height:1.5; max-width:70ch;}
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; margin-bottom:12px;
+  }
+  .row{ display:flex; flex-wrap:wrap; gap:14px 22px; align-items:flex-end; }
+  .field{ display:flex; flex-direction:column; gap:4px; min-width:110px;}
+  .field label{ font-size:.68rem; color:var(--dim); text-transform:none; }
+  .field .val{ font-family:'IBM Plex Mono', monospace; font-size:.72rem; color:var(--accent2);}
+  input[type=range]{ width:150px; accent-color: var(--accent);}
+  input[type=number]{
+    width:60px; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:5px; padding:3px 6px; font-family:'IBM Plex Mono', monospace;
+  }
+  .stepper-row{ display:flex; align-items:stretch; gap:4px; }
+  .stepper-row input[type=number]{ width:66px; }
+  .stepper-btns{ display:flex; flex-direction:column; gap:2px; }
+  .stepbtn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--accent2);
+    font-size:.6rem; line-height:1; padding:2px 7px; cursor:pointer; border-radius:4px;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  .stepbtn:active{ filter:brightness(1.3); }
+  .radiogroup{ display:flex; gap:10px; flex-wrap:wrap; }
+  .radiogroup label{
+    display:flex; align-items:center; gap:5px; font-size:.75rem; color:var(--text);
+    background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer;
+  }
+  .radiogroup input{ accent-color: var(--accent); }
+  button{
+    background:var(--accent); color:#1a1200; border:none; border-radius:7px;
+    font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button.ghost{ background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:500; }
+  select{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:5px; padding:5px 6px; font-family:'IBM Plex Mono', monospace; font-size:.75rem;
+  }
+  details{ margin-top:10px; border-top:1px dashed var(--line); padding-top:8px;}
+  summary{ font-size:.75rem; color:var(--dim); cursor:pointer; }
+  .physio-grid{ display:flex; flex-wrap:wrap; gap:12px 20px; margin-top:10px;}
+  #readout{
+    font-family:'IBM Plex Mono', monospace; font-size:.8rem; color:var(--ok);
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    min-height:1.2em;
+  }
+  .scope{ display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#05080a;}
+  .labels{
+    flex:0 0 108px; background:var(--panel); border-right:1px solid var(--line);
+  }
+  .ruler-spacer{ height:34px; border-bottom:1px solid var(--line); }
+  .chan-label{
+    height:48px; display:flex; align-items:center; padding-left:8px; font-size:.7rem;
+    border-bottom:1px solid #0f1518; font-family:'IBM Plex Mono', monospace; gap:6px;
+  }
+  .swatch{ width:8px; height:8px; border-radius:2px; flex:0 0 auto; }
+  .trace-scroll{ flex:1; overflow-x:auto; overflow-y:hidden; }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:.72rem; color:var(--dim); margin-top:10px;}
+  .legend span{ display:inline-flex; align-items:center; gap:5px;}
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block;}
+  .notes{ font-size:.72rem; color:var(--dim); line-height:1.6; margin-top:10px;}
+  .notes b{ color:#9aa9ad; }
+  @media (max-width:520px){
+    .labels{ flex-basis:80px; }
+    .chan-label{ font-size:.62rem; padding-left:5px;}
+    input[type=range]{ width:110px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Simulador de estudio electrofisiológico — estimulación programada</h1>
+<p class="subtitle">Herramienta educativa. Modelo simplificado de conducción AV normal (sin doble vía nodal ni vía accesoria). Catéter de ablación asumido en posición de haz de His (registro A–H–V). No representa datos de pacientes reales ni reemplaza mediciones con calibrador sobre trazado real.</p>
+
+<div class="panel">
+
+  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin:14px 0 8px; border-top:1px dashed var(--line); padding-top:12px;">Modelos de taquicardias</div>
+  <div class="row">
+    <div class="field" id="tachyCLRow" style="flex-basis:100%;">
+      <label>Ciclo de la taquicardia</label>
+      <div class="stepper-row">
+        <input type="number" id="tachyCL" min="180" max="600" step="10" value="300">
+        <div class="stepper-btns">
+          <button type="button" class="stepbtn" onclick="stepInput('tachyCL',10)">▲</button>
+          <button type="button" class="stepbtn" onclick="stepInput('tachyCL',-10)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field" id="modelsRow" style="flex-basis:100%;">
+      <div class="radiogroup" style="flex-wrap:wrap;">
+        <button type="button" class="stepbtn model-btn" data-model="AVNRT" onclick="selectModelTachy('AVNRT')" style="padding:7px 12px; font-size:.78rem;">TRNAV típica (lenta-rápida)</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="AVRT" onclick="selectModelTachy('AVRT')" style="padding:7px 12px; font-size:.78rem;">TRAV ortodrómica</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="PJRT" onclick="selectModelTachy('PJRT')" style="padding:7px 12px; font-size:.78rem;">Septal RP largo</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="IRP" onclick="selectModelTachy('IRP')" style="padding:7px 12px; font-size:.78rem;">Septal RP intermedio</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="JET" onclick="selectModelTachy('JET')" style="padding:7px 12px; font-size:.78rem;">Ectópica de la unión</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="AT" onclick="selectModelTachy('AT')" style="padding:7px 12px; font-size:.78rem;">Auricular</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="AFL" onclick="selectModelTachy('AFL')" style="padding:7px 12px; font-size:.78rem;">Flutter auricular (2:1)</button>
+        <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="VT" onclick="selectModelTachy('VT')" style="padding:7px 12px; font-size:.78rem;">Ventricular (QRS ancho)</button>
+      </div>
+    </div>
+    <div class="field" id="entrainParamsRow" style="display:none; flex-basis:100%; gap:16px; flex-direction:row; flex-wrap:wrap;">
+      <div class="field" style="flex-basis:100%;">
+        <label style="color:var(--dim); font-size:.72rem;">Programá el "Ciclo S1" y el "Sitio de estimulación" (VD apical o basal) arriba, en Modo de estimulación — eso es lo que se usa para encarrilar.</label>
+      </div>
+      <div class="field">
+        <label>PPI − TCL esperado (ms)</label>
+        <div class="stepper-row">
+          <input type="number" id="entrainPPIminusTCL" min="126" max="300" step="5" value="130" onchange="renderAll()">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('entrainPPIminusTCL',5)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('entrainPPIminusTCL',-5)">▼</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field" id="hisRefrParamsRow" style="display:none; flex-basis:100%; gap:16px; flex-direction:row; flex-wrap:wrap;">
+      <div class="field" style="flex-basis:100%;">
+        <label style="color:var(--dim); font-size:.72rem;">Programá el "Sitio de estimulación" (VD apical o basal) arriba, en Modo de estimulación. Los primeros 8 latidos son sensados, no estimulados.</label>
+      </div>
+      <div class="field">
+        <label>S2 (ms)</label>
+        <div class="stepper-row">
+          <input type="number" id="hisRefrS2" min="150" max="700" step="10" value="400" onchange="renderAll()">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('hisRefrS2',10)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('hisRefrS2',-10)">▼</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Parámetros fisiológicos (ajustables — modelo simplificado)</summary>
+    <div class="physio-grid">
+      <div class="field" id="pathwayLocRow" style="display:none; flex-basis:100%;">
+        <label>Localización de la vía</label>
+        <select id="pathwayLoc" onchange="renderAll()">
+          <option value="leftLateral">Vía lateral izquierda</option>
+          <option value="leftPosterior">Vía posterior izquierda</option>
+          <option value="rightPostSeptal">Vía postero septal derecha</option>
+          <option value="rightLateral">Vía lateral derecha</option>
+          <option value="parahisian">Vía parahisiana</option>
+        </select>
+      </div>
+      <div class="field" id="preexcitationRow" style="display:none; flex-basis:100%;">
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="preexcitationEnabled" onchange="onPreexcitationChange()">
+          Preexcitación manifiesta (WPW en ritmo sinusal)
+        </label>
+      </div>
+      <div class="field" id="pathwayRetroERPRow" style="display:none;">
+        <label>PRE de la vía, retrógrado (ms)</label>
+        <input type="number" id="pathwayRetroERP" value="330" step="10" onchange="onCycleParamChange()">
+      </div>
+      <div class="field" id="pathwayAnteERPRow" style="display:none;">
+        <label>PRE de la vía, anterógrado (ms)</label>
+        <input type="number" id="pathwayAnteERP" value="330" step="10" onchange="onCycleParamChange()">
+      </div>
+      <div class="field"><label>CL sinusal basal</label><input type="number" id="sinusCL" value="800"></div>
+      <div class="field"><label>AH basal (ms)</label><input type="number" id="ah0" value="70"></div>
+      <div class="field"><label>HV fijo (ms)</label><input type="number" id="hv0" value="35"></div>
+      <div class="field"><label>PRE nodo AV anter. (ms)</label><input type="number" id="erp" value="220"></div>
+      <div class="field"><label>VA basal retrógrado (ms)</label><input type="number" id="va0" value="95"></div>
+      <div class="field"><label>PRE retrógrado V-A (ms)</label><input type="number" id="verp" value="220"></div>
+      <div class="field"><label>Wenckebach anterógrado (ms)</label><input type="number" id="wenckAnt" value="240"></div>
+      <div class="field"><label>Wenckebach retrógrado (ms)</label><input type="number" id="wenckRetro" value="240"></div>
+      <div class="field">
+        <label>Salto de vía</label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--text); background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="jumpEnabled" style="accent-color:var(--accent);"> Activar
+        </label>
+      </div>
+      <div class="field"><label>Salta con S2 ≤ (ms)</label><input type="number" id="jumpCL" value="340" step="10"></div>
+      <div class="field">
+        <label>Salto de vía retrógrado</label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--text); background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="jumpRetroEnabled" style="accent-color:var(--accent);"> Activar
+        </label>
+      </div>
+      <div class="field"><label>Salta con V2 ≤ (ms)</label><input type="number" id="jumpRetroCL" value="340" step="10"></div>
+      <div class="field">
+        <label>S2 que induce <span id="s2InduceLabel">TRNAV</span> (ms)</label>
+        <input type="number" id="s2InduceCL" value="320" step="10" onchange="applyS2InduceField()">
+      </div>
+      <div class="field">
+        <label>Inducir con S1S1 (asincrónico)</label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--text); background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="s1InductionEnabled" style="accent-color:var(--accent);"> Activar
+        </label>
+      </div>
+      <div class="field"><label>S1S1 induce con CL ≤ (ms)</label><input type="number" id="s1InductionCL" value="320" step="10" onchange="applyS1InductionCLChange()"></div>
+    </div>
+  </details>
+</div>
+
+<div class="panel">
+  <div id="readout">Presioná «Estimular» para simular.</div>
+</div>
+
+<div class="panel" id="ecg12Panel" style="display:none;">
+  <div style="font-size:.72rem;color:var(--dim);margin-bottom:8px;">ECG de 12 derivaciones — mismo barrido, velocidad y ancho que el polígrafo intracavitario</div>
+  <div class="scope">
+    <div class="labels" id="labelsCol12"></div>
+    <div class="trace-scroll" id="traceScroll12">
+      <div id="traceHost12"></div>
+    </div>
+  </div>
+</div>
+
+<div class="scope">
+  <div class="labels" id="labelsCol"></div>
+  <div class="trace-scroll" id="traceScrollMain">
+    <div id="traceHost"></div>
+  </div>
+</div>
+
+<div class="legend" id="legendHost"></div>
+
+<div class="panel">
+  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Polígrafo</div>
+  <div class="row">
+    <div class="field" id="siteFieldRow">
+      <label>Sitio de estimulación</label>
+      <div class="radiogroup">
+        <label><input type="radio" name="site" value="HRA" checked> Aurícula derecha alta (AD alta)</label>
+        <label><input type="radio" name="site" value="CSprox"> Seno coronario (prox.)</label>
+        <label><input type="radio" name="site" value="CSdist"> Seno coronario (dist.)</label>
+        <div style="flex-basis:100%; height:0;"></div>
+        <label><input type="radio" name="site" value="VDapex"> VD apical</label>
+        <label><input type="radio" name="site" value="VDbasal"> VD basal</label>
+        <label><input type="radio" name="site" value="AblD"> Ablación distal</label>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin:14px 0 8px; border-top:1px dashed var(--line); padding-top:12px;">Modo de estimulación</div>
+  <div class="row">
+    <div class="field">
+      <div class="radiogroup">
+        <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
+        <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
+      </div>
+    </div>
+  </div>
+  <div class="row" style="flex-direction:row; gap:8px;">
+    <div class="field" style="flex-direction:row; gap:8px;">
+      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
+      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
+    </div>
+  </div>
+  <div class="row" style="margin-top:8px;">
+    <div class="field">
+      <div class="radiogroup">
+        <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
+        <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:12px;">
+    <div class="field" id="s1clRow">
+      <label>Ciclo S1</label>
+      <div class="stepper-row">
+        <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
+        <div class="stepper-btns">
+          <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
+          <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field" id="nbeatsRow">
+      <label>Nº de S1 (tren)</label>
+      <input type="number" id="nbeats" min="3" max="15" value="8">
+    </div>
+    <div class="field" id="s2row" style="display:none;">
+      <label>Extraestímulo S2 — 9° latido</label>
+      <div class="stepper-row">
+        <input type="number" id="s2" min="150" max="700" step="10" value="400">
+        <div class="stepper-btns">
+          <button type="button" class="stepbtn" onclick="stepInput('s2',10)">▲</button>
+          <button type="button" class="stepbtn" onclick="stepInput('s2',-10)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Velocidad del trazado</label>
+      <select id="zoom" onchange="renderAll()">
+        <option value="25">25 mm/s</option>
+        <option value="50" selected>50 mm/s</option>
+        <option value="100">100 mm/s</option>
+        <option value="150">150 mm/s</option>
+        <option value="200">200 mm/s</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Velocidad de reproducción</label>
+      <select id="speed" onchange="">
+        <option value="0.25">0.25×</option>
+        <option value="0.5" selected>0.5×</option>
+        <option value="0.75">0.75×</option>
+      </select>
+    </div>
+    <div class="field" style="justify-content:flex-end; flex-direction:row; gap:8px;">
+      <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
+      <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
+      <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <b>Convenciones:</b> A = activación auricular local · H = deflexión hisiana · V = activación ventricular local. Espiga amarilla = artefacto de estimulación. Anotaciones verdes/rosadas junto al extraestímulo = intervalos medidos (AH·HV o VH·HA).<br>
+  <b>Simplificaciones del modelo:</b> conducción AV decremental sólo a nivel del nodo AV (HV fijo, no decremental); por debajo de 150&nbsp;ms se asume falla de captura miocárdica local; secuencia de activación del catéter de CS asumida próximal→distal en sentido anterógrado y retrógrado; sin fenómeno de doble vía nodal ni preexcitación en este escenario.
+</div>
+
+<script>
+const CHANNELS = [
+  {key:'D1',   label:'D1',            color:'#e9e9e9', kind:'surface'},
+  {key:'D2',   label:'D2',            color:'#e9e9e9', kind:'surface'},
+  {key:'V1',   label:'V1',            color:'#e9e9e9', kind:'surface'},
+  {key:'AblD', label:'Abl distal',    color:'#ffb020', kind:'ablation'},
+  {key:'AblP', label:'Abl proximal',  color:'#ffb020', kind:'ablation'},
+  {key:'HRA',  label:'AD alta',       color:'#c9a0ff', kind:'hra'},
+  {key:'CS12', label:'CS 1-2 (dist.)',color:'#35c9f0', kind:'cs', csIdx:4},
+  {key:'CS34', label:'CS 3-4',        color:'#35c9f0', kind:'cs', csIdx:3},
+  {key:'CS56', label:'CS 5-6',        color:'#35c9f0', kind:'cs', csIdx:2},
+  {key:'CS78', label:'CS 7-8',        color:'#35c9f0', kind:'cs', csIdx:1},
+  {key:'CS910',label:'CS 9-10 (prox.)',color:'#35c9f0',kind:'cs', csIdx:0},
+  {key:'VD',   label:'VD',            color:'#ff4d6d', kind:'vd'},
+];
+const ROW_H = 48, TOP_PAD = 34, LOCAL_ERP = 150, PX_PER_MM = 10;
+let CTX = {};
+let CURRENT_MAX_T = 0, CURRENT_PX = 0.45;
+let playing = false, rafId = null, elapsedMs = 0, lastTs = null, loopTimeoutId = null;
+
+function mmsToPxPerMs(mms){ return mms * PX_PER_MM / 1000; }
+
+// Derivaciones estándar: morfología normal (conducción angosta) + cómo cambia el eje cuando el
+// latido viene de estimulación ventricular (b.origin==='V'), según el sitio de pacing en VD.
+const LEADS12 = [
+  {name:'DI',   type:'up'},
+  {name:'DII',  type:'qR'},
+  {name:'DIII', type:'rs'},
+  {name:'aVR',  type:'QS'},
+  {name:'aVL',  type:'rs'},
+  {name:'aVF',  type:'qR'},
+  {name:'V1',   type:'rS'},
+  {name:'V2',   type:'rS'},
+  {name:'V3',   type:'RS'},
+  {name:'V4',   type:'Rs'},
+  {name:'V5',   type:'qR'},
+  {name:'V6',   type:'qR'},
+];
+function qrsWideState(b){
+  // 'coincide': el QRS estimulado cae junto al QRS propio de la taquicardia — se dibuja uno solo,
+  // con la morfología estimulada pero 40 ms más angosto que el ancho pleno.
+  if (b.qrsCoincide) return 'coincide';
+  return (b.origin==='V' && !b.narrow);
+}
+function qrsShapeFeat(x, cy, px, type, wide){
+  // 'x' es el INICIO del QRS (el intervalo HV llega hasta acá, no hasta el centro del complejo).
+  const dur = (wide==='coincide' ? 90 : (wide ? 130 : 70)) * px;
+  const h = dur/2;
+  const cx = x + h; // centro visual, usado solo para las curvas internas del trazo
+  switch(type){
+    case 'qR': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.5} ${cy+4} L ${cx-h*0.15} ${cy-30} L ${cx+h*0.35} ${cy+6} L ${cx+h} ${cy}`};
+    case 'Rs':
+      if (wide){
+        const hw = h*1.15, cxw = x + hw; // este trazo (curva Q) es más ancho que el estándar
+        return {xStart:x, xEnd:x+2*hw, cmd:`Q ${cxw-hw*0.4} ${cy-30} ${cxw} ${cy-30} Q ${cxw+hw*0.4} ${cy-30} ${cxw+hw} ${cy}`};
+      }
+      return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.3} ${cy-28} L ${cx} ${cy+4} L ${cx+h*0.3} ${cy+12} L ${cx+h} ${cy}`};
+    case 'rS': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.5} ${cy-10} L ${cx-h*0.15} ${cy+4} L ${cx+h*0.3} ${cy+28} L ${cx+h} ${cy}`};
+    case 'RS': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.3} ${cy-22} L ${cx} ${cy+4} L ${cx+h*0.3} ${cy+20} L ${cx+h} ${cy}`};
+    case 'QS': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.1} ${cy+4} L ${cx+h*0.15} ${cy+28} L ${cx+h} ${cy}`};
+    case 'rs': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.3} ${cy-8} L ${cx} ${cy+2} L ${cx+h*0.3} ${cy+8} L ${cx+h} ${cy}`};
+    case 'neg': return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.45} ${cy+6} L ${cx-h*0.1} ${cy+21} L ${cx+h*0.4} ${cy-15} L ${cx+h} ${cy}`};
+    default:    return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.4} ${cy-4} L ${cx} ${cy-26} L ${cx+h*0.4} ${cy+8} L ${cx+h} ${cy}`};
+  }
+}
+function leadQRSConfig(cfg, beatOrigin, site, narrow){
+  if (beatOrigin !== 'V' || narrow) return {type: cfg.type, wide:false};
+  // Estimulación desde VD: QRS ancho, patrón de bloqueo de rama izquierda (BRI). El eje frontal
+  // cambia según el sitio de origen (apical = eje superior, basal = eje conservado/positivo en cara inferior).
+  const inferiorLeads = ['DII','DIII','aVF'];
+  if (site==='VDapex'){
+    if (inferiorLeads.includes(cfg.name)) return {type:'neg', wide:true};
+    if (cfg.name==='aVR') return {type:'rs', wide:true};   // eje superior: aVR casi isoeléctrico
+    if (cfg.name==='DI' || cfg.name==='aVL') return {type:'up', wide:true};
+  } else if (site==='VDbasal'){
+    if (inferiorLeads.includes(cfg.name)) return {type: cfg.type, wide:true}; // eje positivo en cara inferior
+    if (cfg.name==='aVR') return {type:'QS', wide:true};
+  }
+  // Precordiales — patrón de BRI verdadero: S profunda en V1-V2, transición en V3,
+  // y R ancha y predominante (no pequeña) en V4-V6, sin onda Q.
+  if (['V1','V2'].includes(cfg.name)) return {type:'rS', wide:true};
+  if (cfg.name==='V3') return {type:'RS', wide:true};
+  if (['V4','V5','V6'].includes(cfg.name)) return {type:'qR', wide:true};
+  if (inferiorLeads.includes(cfg.name)) return {type:'Rs', wide:true}; // por defecto (p. ej. TV): R alta con s terminal
+  return {type: cfg.type, wide:true};
+}
+function renderLead12Trace(cfg, beats, cy, px, width){
+  const features = [];
+  let overlays = '';
+  // DI, DII y V1 son exactamente los mismos canales que ya se ven en el polígrafo intracavitario
+  // (misma morfología, incluida la inversión en DII con VD apical) — no una aproximación aparte.
+  const mirrorMain = (cfg.name==='DI' || cfg.name==='DII' || cfg.name==='V1');
+  const inferior12 = (cfg.name==='DII' || cfg.name==='DIII' || cfg.name==='aVF');
+  const isFlutter = beats.some(b => b.sawtooth);
+  if (isFlutter) buildSawtoothTeeth(beats, px, cy).forEach(f => features.push(f));
+  beats.forEach(b => {
+    if (b.blocked==='local') return;
+    if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
+    if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface){
+      let pInv = b.origin==='V';
+      if (inferior12 && b.origin==='A' && b.isPaced && (CTX.site==='CSprox' || CTX.site==='CSdist')) pInv = true;
+      if (b.abnormalP) pInv = true;
+      features.push(pWaveFeat(b.ta*px, cy, pInv, px));
+    }
+    if (b.echoVisible) features.push(pWaveFeat((b.surfaceP ?? b.echoTa)*px, cy, true, px));
+    if (b.tv!=null){
+      const dSign = b.hasDelta ? deltaSignForLead(b.deltaPathway, cfg.name) : null;
+      if (b.hasDelta && dSign !== 'none'){
+        features.push(preexcitedQrsFeat((b.ta+40)*px, cy, dSign, px, qrsAmplitudeScale(cfg.name), deltaMorphologyForLead(b.deltaPathway, cfg.name)));
+      } else if (b.hasDelta){
+        // Esta derivación no muestra onda delta (vector isoeléctrico): QRS normal, sin ensanchar,
+        // pero igual sin segmento PR (arranca justo donde termina la P).
+        features.push(qrsShapeFeat((b.ta+75)*px, cy, px, cfg.type, false));
+      } else if (mirrorMain){
+        if (cfg.name==='DII' && b.origin==='V' && CTX.site==='VDapex' && !b.narrow){
+          features.push(qrsFeatNeg(b.tv*px, cy, px, b.qrsCoincide ? 'coincide' : true));
+        } else if (cfg.name==='V1'){
+          features.push(qrsShapeFeat(b.tv*px, cy, px, 'rS', qrsWideState(b)));
+        } else {
+          features.push(qrsFeat(b.tv*px, cy, qrsWideState(b), px));
+        }
+      } else {
+        const qc = leadQRSConfig(cfg, b.origin, CTX.site, b.narrow);
+        features.push(qrsShapeFeat(b.tv*px, cy, px, qc.type, b.qrsCoincide ? 'coincide' : qc.wide));
+      }
+    }
+  });
+  return `<path d="${buildContinuousPath(features, cy, width)}" fill="none" stroke="#d7dee0" stroke-width="1.4"/>` + overlays;
+}
+function buildSvg12(beats, px, fixedDurationMs){
+  let maxT = fixedDurationMs;
+  if (maxT == null){
+    maxT = 0;
+    beats.forEach(b => { maxT = Math.max(maxT, b.ta||0, b.tv||0, b.th||0); });
+    maxT += 500;
+    maxT = Math.max(maxT, 900/px);
+  }
+  const width = Math.round(maxT*px);
+  const height = TOP_PAD + LEADS12.length*ROW_H + 20;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  s += `<rect width="100%" height="100%" fill="#05080a"/>`;
+  for (let tms=0; tms*px<width; tms+=200){
+    const x = tms*px, major = tms%1000===0;
+    s += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="${major?'#1c2b30':'#0f1a1d'}" stroke-width="1"/>`;
+    if (major) s += `<text x="${x+4}" y="${height-6}" fill="#3d5a61" font-size="10" font-family="'IBM Plex Mono',monospace">${(tms/1000).toFixed(1)}s</text>`;
+  }
+  LEADS12.forEach((cfg,i) => {
+    const cy = TOP_PAD + i*ROW_H + ROW_H/2;
+    s += `<line x1="0" y1="${cy}" x2="${width}" y2="${cy}" stroke="#0d1518" stroke-width="1"/>`;
+  });
+  s += `<defs><clipPath id="revealClip12"><rect id="clipRect12" x="0" y="0" width="0" height="${height}"/></clipPath></defs>`;
+  s += `<g clip-path="url(#revealClip12)">`;
+  LEADS12.forEach((cfg,i) => {
+    const cy = TOP_PAD + i*ROW_H + ROW_H/2;
+    s += renderLead12Trace(cfg, beats, cy, px, width);
+  });
+  s += `</g>`;
+  s += `<line id="cursorLine12" x1="0" y1="0" x2="0" y2="${height}" stroke="#ffffff" stroke-width="1.5" opacity="0.85"/>`;
+  s += `</svg>`;
+  return s;
+}
+function buildLabels12(){
+  const col = document.getElementById('labelsCol12');
+  if (!col) return;
+  col.innerHTML = '<div class="ruler-spacer"></div>' + LEADS12.map(cfg =>
+    `<div class="chan-label">${cfg.name}</div>`
+  ).join('');
+}
+function refreshEcg12(beats){
+  const panel = document.getElementById('ecg12Panel');
+  if (!panel || panel.style.display === 'none') return; // oculto: no vale la pena reconstruirlo
+  const host = document.getElementById('traceHost12');
+  if (host) host.innerHTML = buildSvg12(beats, CURRENT_PX, SWEEP_MS);
+}
+function toggleEcg12(){
+  const panel = document.getElementById('ecg12Panel');
+  const btn = document.getElementById('ecg12Btn');
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? 'Ocultar ECG 12 derivaciones' : 'ECG 12 derivaciones';
+  if (show){
+    refreshEcg12(currentLapBeats());
+  }
+}
+
+function buildLabelsAndLegend(){
+  const labelsCol = document.getElementById('labelsCol');
+  labelsCol.innerHTML = '<div class="ruler-spacer"></div>' + CHANNELS.map(ch =>
+    `<div class="chan-label"><span class="swatch" style="background:${ch.color}"></span>${ch.label}</div>`
+  ).join('');
+
+  const legendHost = document.getElementById('legendHost');
+  legendHost.innerHTML = `
+    <span><i style="background:#e9e9e9"></i>Superficie (D1, D2, V1)</span>
+    <span><i style="background:#ffb020"></i>Catéter de ablación</span>
+    <span><i style="background:#35c9f0"></i>Catéter de seno coronario</span>
+    <span><i style="background:#ff4d6d"></i>Catéter VD</span>
+    <span><i style="background:#c9a0ff"></i>Catéter aurícula derecha alta (AD alta)</span>
+    <span><i style="background:#ffd166"></i>Espiga de estimulación</span>
+  `;
+}
+
+let activeMode = 'ASYNC'; // 'ASYNC' | 'SYNC' | 'MODELS' — MODELS se activa desde los botones de taquicardias, no tiene radio propio
+let SENSING_MODE = false; // true: Sensado (sin tren de S1, solo se entrega el S2), fuerza modo Sincrónico
+let SENSED_S2_FRESH = false; // true solo en el redibujo inmediatamente posterior a presionar "Estimular"
+                              // en Sensado — evita que un redibujo pasivo (p.ej. cambiar el sitio) entregue
+                              // un S2 "de prueba" con el valor de S2 vigente y corte la taquicardia sin querer.
+let SENSED_CYCLE_TOKEN = 0; // se incrementa en cada entrega fresca; invalida cortes diferidos obsoletos.
+function startStimulation(){
+  // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
+  if ((activeMode==='ASYNC' || activeMode==='SYNC') && !SENSING_MODE){
+    AVNRT_INDUCED = false; // arranca limpio: vuelve a mostrar el tren completo antes de inducir
+    OVERDRIVE_TERMINATED = false;
+  }
+  if (SENSING_MODE) SENSED_S2_FRESH = true;
+  STIMULATING = true;
+  renderAll();
+  centerOnMonitor();
+}
+function centerOnMonitor(){
+  const mainTrace = document.getElementById('traceScrollMain');
+  const scope = mainTrace ? mainTrace.closest('.scope') : null;
+  if (scope && scope.scrollIntoView) scope.scrollIntoView({behavior:'smooth', block:'center'});
+}
+function buildTachyCutAtInstant(type, cycleMs, upToMs, stopAtMs){
+  // Genera la taquicardia sostenida (TRNAV o TRAV) normalmente hasta el instante del corte, y
+  // continúa con ritmo sinusal desde ahí — sin reiniciar el polígrafo ni mostrar latidos residuales.
+  const beats = buildTachyBeats(type, cycleMs, stopAtMs);
+  let ts = stopAtMs;
+  while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  return beats;
+}
+function buildAsyncCutAtInstant(p, upToMs, stopAtMs){
+  // Conserva el pacing (con o sin Wenckebach) tal cual se venía viendo hasta el instante del
+  // corte, y continúa con ritmo sinusal desde ahí — sin reiniciar el polígrafo.
+  const beats = buildAsyncLapBeats(p).filter(b => {
+    const t0 = b.stimTime ?? b.ta ?? b.tv;
+    return t0 != null && t0 < stopAtMs;
+  });
+  let ts = stopAtMs;
+  while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  return beats;
+}
+function buildInductionAtInstant(p, upToMs, stopAtMs){
+  // Se estaba paceando 1:1 a un ciclo dentro de la ventana de inducción; al presionar "Detener",
+  // el último S1 entregado (justo en el instante del corte) es el que dispara la reentrada,
+  // mostrando ahí la activación auricular retroconducida — y de ahí en más sigue en taquicardia
+  // sostenida, sin reiniciar el polígrafo.
+  const beats = buildAsyncLapBeats(p).filter(b => {
+    const t0 = b.stimTime ?? b.ta ?? b.tv;
+    return t0 != null && t0 < stopAtMs;
+  });
+  let lastBeat = null;
+  for (let i=beats.length-1; i>=0; i--){ if (beats[i].tv!=null){ lastBeat = beats[i]; break; } }
+  if (!lastBeat) return beats; // no hubo ningún latido capturado: no hay nada que dispare
+  const sustainedCL = +document.getElementById('tachyCL').value;
+  AVNRT_INDUCED = true;
+  AVNRT_TCL = sustainedCL;
+  INDUCED_TYPE = INDUCE_TARGET;
+  // Se dejó de estimular (se indujo al detener) — el campo de ciclo de estimulación ya no refleja
+  // un pacing activo. Si quedara en un valor más rápido que el propio ciclo de la taquicardia,
+  // el próximo redibujado lo interpretaría como sobreestimulación en curso y mostraría Wenckebach
+  // con AH en vez de la V-A simultánea real. Se lo lleva al ciclo sostenido para evitar eso.
+  document.getElementById('s1cl').value = sustainedCL;
+  if (INDUCE_TARGET === 'AVRT'){
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    const s1VA = (pwCfg.baseVA ?? 20) + earliestOff;
+    lastBeat.echoTa = lastBeat.tv + s1VA;
+    lastBeat.surfaceP = lastBeat.tv + 115;
+    lastBeat.ablationP = lastBeat.tv + s1VA + pwCfg.ablOff;
+    lastBeat.echoVisible = true;
+    lastBeat.pathway = locKey;
+    const ahFirst = Math.max(60, sustainedCL - CTX.hv0);
+    let th = lastBeat.tv + ahFirst;
+    while (th < upToMs){
+      const tv = th + CTX.hv0, va = (pwCfg.baseVA ?? 20) + earliestOff, echoTa = tv + va;
+      const surfaceP = tv + 115, ablationP = tv + va + pwCfg.ablOff;
+      beats.push({origin:'A', label:'TRAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:95, th, tv, echoTa, surfaceP, ablationP, echoVisible:true, pathway:locKey});
+      th += sustainedCL;
+    }
+    return beats;
+  }
+  const sustainedAH = Math.max(30, sustainedCL - CTX.hv0);
+  lastBeat.echoTa = lastBeat.tv + 35; // el eco del último S1 (VA simultáneo, dentro del QRS) dispara el reingreso
+  delete lastBeat.blocked;
+  let th = lastBeat.tv + sustainedAH;
+  while (th < upToMs){
+    const tv = th + CTX.hv0;
+    beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:sustainedAH, th, tv, echoTa:tv+35});
+    th += sustainedCL;
+  }
+  return beats;
+}
+function stopStimulation(){
+  // Termina la estimulación en curso y vuelve al ritmo sinusal basal.
+  if (!STIMULATING) return; // no había nada corriendo: no tocar el estado de la taquicardia.
+  if (SENSING_MODE){
+    // En Sensado no hay un "tren" que detener: la taquicardia solo se corta por la física del S2
+    // (según su prematurez), nunca por apretar este botón. Simplemente se deja de mirar/animar —
+    // y se invalida cualquier corte diferido que hubiera quedado pendiente de un S2 anterior.
+    SENSED_CYCLE_TOKEN++;
+    STIMULATING = false;
+    pause();
+    return;
+  }
+  if ((activeMode==='ASYNC' || activeMode==='SYNC') && !AVNRT_INDUCED){
+    const p = getPacingParams();
+    const isAtrialSiteNow = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+    const s1IndEnabled = document.getElementById('s1InductionEnabled').checked;
+    const s1IndCL = +document.getElementById('s1InductionCL').value;
+    const wenckAntPt = +document.getElementById('wenckAnt').value;
+    const canAutoInduce = (INDUCE_TARGET==='AVNRT') || (INDUCE_TARGET==='AVRT' && !PREEXCITATION_ENABLED);
+    // Ventana de inducción: desde el ciclo S1S1 programado hasta el punto de Wenckebach anterógrado
+    // (mientras la conducción antegrada siga 1:1, aunque decremental, se puede inducir la reentrada;
+    // recién al llegar al Wenckebach anterógrado cambia la física y deja de aplicar esta inducción).
+    const inInductionWindow = isAtrialSiteNow && s1IndEnabled && canAutoInduce
+      && p.s1cl <= s1IndCL && p.s1cl >= wenckAntPt;
+    if (inInductionWindow){
+      // Este es el momento del corte: el último S1 entregado dispara la reentrada. STIMULATING
+      // sigue en true a propósito — así, cuando la vuelta de pantalla termine y se reinicie, el
+      // próximo redibujado sigue mostrando la taquicardia sostenida en vez de volver a sinusal.
+      const stopAt = elapsedMs;
+      const beats = buildInductionAtInstant(p, SWEEP_MS + 500, stopAt);
+      document.getElementById('traceHost').innerHTML = buildSvg(beats, CURRENT_PX, SWEEP_MS);
+      refreshEcg12(beats);
+      updateReadout(beats);
+      return;
+    }
+  }
+  if ((activeMode==='ASYNC' || activeMode==='SYNC') && AVNRT_INDUCED){
+    const p = getPacingParams();
+    const wasType = INDUCED_TYPE;
+    // La misma condición que ya decide, mientras se sigue estimulando, si el ciclo actual alcanza
+    // para cortar la reentrada (rebuildLap) o si esta sigue sostenida pese al pacing.
+    const cutsIt = (wasType==='AVNRT' && p.s1cl <= AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < AVNRT_TCL - 30);
+    if (!cutsIt){
+      // La estimulación actual no alcanza para cortarla: la reentrada es autosostenida y sigue en
+      // taquicardia aunque se deje de pacear — no se toca ni se reinicia nada.
+      return;
+    }
+    // Si alcanza para cortarla: se aplica el corte YA, en el instante actual, sin reiniciar el
+    // polígrafo — el cursor y el trazado ya dibujado quedan como están, y de acá en más sigue en sinusal.
+    const stopAt = elapsedMs;
+    AVNRT_INDUCED = false;
+    OVERDRIVE_TERMINATED = false;
+    STIMULATING = false;
+    const beats = (wasType==='AVNRT')
+      ? buildOverdriveTermination(p, SWEEP_MS + 500, AVNRT_TCL, stopAt)
+      : buildTachyCutAtInstant(wasType, AVNRT_TCL, SWEEP_MS + 500, stopAt);
+    document.getElementById('traceHost').innerHTML = buildSvg(beats, CURRENT_PX, SWEEP_MS);
+    refreshEcg12(beats);
+    updateReadout(beats);
+    return;
+  }
+  if (activeMode==='ASYNC' || activeMode==='SYNC'){
+    // Pacing simple (sin taquicardia inducida): igual que arriba, se corta desde el instante
+    // actual, conservando lo que ya se venía viendo, sin reiniciar el polígrafo.
+    const p = getPacingParams();
+    const stopAt = elapsedMs;
+    STIMULATING = false;
+    AVNRT_INDUCED = false;
+    OVERDRIVE_TERMINATED = false;
+    const beats = buildAsyncCutAtInstant(p, SWEEP_MS + 500, stopAt);
+    document.getElementById('traceHost').innerHTML = buildSvg(beats, CURRENT_PX, SWEEP_MS);
+    refreshEcg12(beats);
+    updateReadout(beats);
+    return;
+  }
+  // Ningún otro caso tiene un "tren" que detener de verdad (p.ej. los modelos simples como
+  // Auricular, Flutter, JET, Ventricular, que se muestran como ritmo continuo sin protocolo de
+  // sobreestimulación): "Detener" no hace nada acá — no reinicia el polígrafo ni corta la
+  // taquicardia, y tampoco toca STIMULATING (para que el próximo redibujado natural no revierta a
+  // sinusal por su cuenta).
+}
+function onSensingModeChange(){
+  SENSING_MODE = document.querySelector('input[name=sensingMode]:checked').value === 'sensed';
+  const asyncRadio = document.querySelector('input[name=mode][value=ASYNC]');
+  const syncRadio = document.querySelector('input[name=mode][value=SYNC]');
+  asyncRadio.disabled = SENSING_MODE;
+  if (SENSING_MODE && !syncRadio.checked){ syncRadio.checked = true; }
+  activeMode = document.querySelector('input[name=mode]:checked').value;
+  updateModeVisibility();
+  renderAll();
+}
+function onModeRadioChange(){
+  activeMode = document.querySelector('input[name=mode]:checked').value;
+  updateModeVisibility();
+  renderAll();
+}
+function updateModeVisibility(){
+  const s2row = document.getElementById('s2row');
+  const nbeatsInput = document.getElementById('nbeats');
+  const s1clRow = document.getElementById('s1clRow');
+  const showS2 = (activeMode==='SYNC') || (activeMode==='MODELS' && MODEL_TACHY_TYPE==='AVNRT');
+  s2row.style.display = showS2 ? 'flex' : 'none';
+  nbeatsInput.disabled = showS2 || SENSING_MODE;
+  if (showS2) nbeatsInput.value = 8;
+  // Sensado: sin tren de S1 — el ciclo S1 no aplica, solo el S2.
+  s1clRow.style.opacity = SENSING_MODE ? '0.4' : '1';
+  document.getElementById('s1cl').disabled = SENSING_MODE;
+}
+
+function computeAH(CI){
+  if (CI <= CTX.ERP) return null;
+  const margin = 15, k = 1800;
+  let value;
+  if (CI >= CTX.wenckAnt){
+    // Decremento progresivo y ya notorio a medida que la FC de estimulación aumenta, antes de llegar al Wenckebach
+    const span = Math.max(1, CTX.sinusCL - CTX.wenckAnt);
+    const frac = Math.min(1, Math.max(0, (CTX.sinusCL - CI) / span));
+    value = CTX.AH0 + frac*30;
+  } else {
+    // Por debajo del punto de Wenckebach, el AH se prolonga en forma marcada a medida que se acerca al PRE
+    const dec = k/(CI-CTX.ERP+margin) - k/(CTX.wenckAnt-CTX.ERP+margin);
+    value = Math.max(CTX.AH0+30, (CTX.AH0+30) + dec);
+  }
+  // Salto de vía (doble vía nodal): al llegar al S2 configurado, la vía rápida se bloquea y la
+  // conducción pasa a la vía lenta — un salto brusco de AH (>50 ms), no una prolongación gradual.
+  if (CTX.jumpEnabled && CI <= CTX.jumpCL && MODEL_TACHY_TYPE!=='AVRT'){
+    value += 70;
+  }
+  return value;
+}
+function computeVA(CI){
+  if (CI <= CTX.VERP) return null;
+  const margin = 15, k = 1800;
+  let value;
+  if (CI >= CTX.wenckRetro){
+    const span = Math.max(1, CTX.sinusCL - CTX.wenckRetro);
+    const frac = Math.min(1, Math.max(0, (CTX.sinusCL - CI) / span));
+    value = CTX.VA0 + frac*30;
+  } else {
+    const dec = k/(CI-CTX.VERP+margin) - k/(CTX.wenckRetro-CTX.VERP+margin);
+    value = Math.max(CTX.VA0+30, (CTX.VA0+30) + dec);
+  }
+  // Salto de vía retrógrado (doble vía nodal en sentido V-A): al llegar al V2 configurado, la vía
+  // rápida retrógrada se bloquea y la conducción retrógrada pasa a la vía lenta — salto brusco de VA.
+  if (CTX.jumpRetroEnabled && CI <= CTX.jumpRetroCL){
+    value += 70;
+  }
+  return value;
+}
+
+// Periodicidad de Wenckebach: devuelve N (conducción N:N-1) o null si no aplica (1:1 o bloqueo fijo)
+function wenckPeriod(cl, erp, wenckPoint){
+  if (!(wenckPoint > erp)) return null;
+  if (cl >= wenckPoint) return null;
+  if (cl <= erp) return null;
+  const ratio = (wenckPoint - cl) / (wenckPoint - erp);
+  let N = Math.round(8 - ratio*6);
+  return Math.min(8, Math.max(2, N));
+}
+function makeAtrialBeatWithAH(refTime, CI, label, ah){
+  const beat = {origin:'A', label, isPaced:true, isExtra:false, CI, stimTime:refTime, ta:refTime};
+  beat.ah = ah; beat.th = refTime + ah; beat.tv = beat.th + CTX.hv0;
+  if (CTX.jumpEnabled && CI <= CTX.jumpCL && MODEL_TACHY_TYPE!=='AVRT') beat.echoTa = beat.tv + 35;
+  return beat;
+}
+function makeAtrialBeatBlockedWenck(refTime, CI, label){
+  return {origin:'A', label, isPaced:true, isExtra:false, CI, stimTime:refTime, ta:refTime, blocked:'AV'};
+}
+function makeVentricularBeatWithVA(refTime, CI, label, va){
+  const beat = {origin:'V', label, isPaced:true, isExtra:false, CI, stimTime:refTime, tv:refTime};
+  beat.va = va; beat.th = refTime + CTX.hv0; beat.ta = refTime + va;
+  return beat;
+}
+function makeVentricularBeatBlockedWenck(refTime, CI, label){
+  return {origin:'V', label, isPaced:true, isExtra:false, CI, stimTime:refTime, tv:refTime, blocked:'VA'};
+}
+
+function makeAtrialBeat(refTime, CI, isPaced, label, isExtra){
+  const beat = {origin:'A', label, isPaced, isExtra:!!isExtra, CI, stimTime: isPaced?refTime:undefined};
+  if (CI < LOCAL_ERP){ beat.blocked='local'; return beat; }
+  beat.ta = refTime;
+  const ah = computeAH(CI);
+  if (ah==null){ beat.blocked='AV'; return beat; }
+  beat.ah = ah;
+  beat.th = refTime + ah;
+  if (PREEXCITATION_ENABLED && !isPaced && CI >= (+document.getElementById('pathwayAnteERP').value)){
+    // Preexcitación manifiesta: la vía activa el ventrículo antes que el sistema His-Purkinje —
+    // HV negativo (-10 ms) y onda delta, con polaridad según la localización de la vía.
+    beat.tv = beat.th + 15;
+    beat.hasDelta = true;
+    beat.deltaPathway = document.getElementById('pathwayLoc').value;
+  } else {
+    beat.tv = beat.th + CTX.hv0;
+  }
+  if (CTX.jumpEnabled && CI <= CTX.jumpCL && MODEL_TACHY_TYPE!=='AVRT'){
+    // Eco auricular: retorno retrógrado por la vía rápida tras el salto a la vía lenta,
+    // cae dentro del QRS de este mismo latido (VA simultáneo), no en su borde de entrada.
+    beat.echoTa = beat.tv + 35;
+  }
+  return beat;
+}
+function makeVentricularBeat(refTime, CI, isPaced, label, isExtra){
+  const beat = {origin:'V', label, isPaced, isExtra:!!isExtra, CI, stimTime: isPaced?refTime:undefined};
+  if (CI < LOCAL_ERP){ beat.blocked='local'; return beat; }
+  beat.tv = refTime;
+  if (CTX.site==='AblD') beat.narrow = true; // captura directa del His: QRS angosto, a diferencia de la captura miocárdica (ancha) desde VD apical/basal
+  if (MODEL_TACHY_TYPE==='AVRT'){
+    const pathwayRetroERP = +document.getElementById('pathwayRetroERP').value;
+    if (CI < pathwayRetroERP){
+      // La vía no llega a conducir en sentido retrógrado a este ciclo: sin retroconducción por
+      // ella (puede seguir habiendo conducción V-A por el nodo AV, según el modelo general).
+      const vaApex = computeVA(CI);
+      const vaNode = (vaApex==null) ? null : vaApex + (CTX.site==='VDbasal' ? 40 : 0);
+      if (vaNode==null){ beat.blocked='VA'; return beat; }
+      beat.va = vaNode;
+      beat.th = refTime + CTX.hv0;
+      beat.ta = refTime + vaNode;
+      return beat;
+    }
+    // Preexcitación manifiesta: la vía también conduce en sentido retrógrado, con la misma
+    // secuencia (VA por catéter) que se ve durante la TRAV sostenida.
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    const va = (pwCfg.baseVA ?? 20) + earliestOff;
+    beat.va = va;
+    beat.th = refTime + CTX.hv0;
+    beat.ta = refTime + va;
+    beat.echoTa = refTime + va;
+    beat.ablationP = refTime + va + pwCfg.ablOff;
+    beat.pathway = locKey;
+    beat.hiddenOnSurface = true; // la P retrógrada no se ve en el ECG de superficie, solo en los catéteres
+    return beat;
+  }
+  const vaApex = computeVA(CI);
+  const va = (vaApex==null) ? null : vaApex + (CTX.site==='VDbasal' ? 40 : 0);
+  if (va==null){ beat.blocked='VA'; return beat; }
+  beat.va = va;
+  beat.th = refTime + CTX.hv0;
+  beat.ta = refTime + va;
+  return beat;
+}
+
+function buildSensedS2Cycle(startTime, p){
+  // Sensado: sin tren de S1 — se sensa el ritmo real del momento (la taquicardia sostenida si la
+  // hay, o el sinusal si no) y se entrega un único S2 desde el sitio elegido, sin resetear nada —
+  // después del S2 se continúa en ese mismo ritmo (si estaba en taquicardia, sigue en taquicardia).
+  const beats = [];
+  const isAtrialSite = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+  const inTachy = AVNRT_INDUCED;
+  const cl = inTachy ? AVNRT_TCL : CTX.sinusCL;
+  const tachyLabel = (INDUCED_TYPE==='AVRT') ? 'TRAV' : 'TRNAV';
+  let t = startTime, lastEventTime = startTime, lastAtrialTh = startTime;
+  for (let i=0; i<8; i++){
+    const b = inTachy ? makeSustainedTachyBeat(t, INDUCED_TYPE, tachyLabel) : makeAtrialBeat(t, cl, false, 'Sinus');
+    beats.push(b);
+    lastEventTime = isAtrialSite ? t : (b.tv ?? t);
+    lastAtrialTh = t;
+    t += cl;
+  }
+  const stimTime = lastEventTime + p.ci2;
+  let s2Beat;
+  if (isAtrialSite) s2Beat = makeAtrialBeat(stimTime, p.ci2, true, 'S2', true);
+  else s2Beat = makeVentricularBeat(stimTime, p.ci2, true, 'S2', true);
+  beats.push(s2Beat);
+
+  const isTRNAVwithS2 = inTachy && INDUCED_TYPE==='AVNRT';
+  const fresh = SENSED_S2_FRESH;
+  SENSED_S2_FRESH = false;
+  if (fresh) SENSED_CYCLE_TOKEN++;
+  if (isTRNAVwithS2 && !fresh){
+    // Redibujo pasivo (p.ej. cambiar el sitio de estimulación) sin haber presionado "Estimular" de
+    // nuevo: no se entrega ningún S2 "de prueba" con el valor vigente — se sigue mostrando la TRNAV
+    // sostenida tal cual, sin cortarla.
+    const beats2 = [];
+    let th = startTime;
+    for (let i=0; i<10; i++){ beats2.push(makeSustainedTachyBeat(th, INDUCED_TYPE, tachyLabel)); th += cl; }
+    return {beats: beats2, nextTime: th};
+  }
+  if (isTRNAVwithS2){
+    // Secuencia específica: S2 (auricular o ventricular) durante TRNAV, según la prematurez
+    // respecto del ciclo de la taquicardia.
+    //  - < 30 ms más precoz: el intervalo AA no se modifica, la TRNAV sigue igual — si el S2 es
+    //    ventricular, se disocia (no retroconduce, no muestra P asociada).
+    //  - 30–40 ms más precoz: el S2 sí retroconduce, con el intervalo VA acortado 20 ms — el
+    //    intervalo AA que contiene al S2 se acorta 29 ms — y se ve como QRS puro estimulado (no
+    //    se fusiona con el QRS propio de la taquicardia aunque caigan cerca).
+    //  - >= 40 ms más precoz: se bloquea en la aurícula (no retroconduce) y corta automáticamente
+    //    la TRNAV, quedando en ritmo sinusal — recién DESPUÉS de que se vea entregado el estímulo
+    //    (no en el instante de apretar "Estimular").
+    const prematurity = cl - p.ci2;
+    const inVAshortZone = (prematurity >= 30 && prematurity < 40);
+    const terminated = (prematurity >= 40);
+    let nextDelay = cl;
+    if (inVAshortZone){ nextDelay = cl - 29; }
+    if (!isAtrialSite && prematurity < 30){
+      // Disociado: el S2 ventricular no retroconduce a la aurícula (la TRNAV sigue intacta).
+      delete s2Beat.ta; delete s2Beat.th; delete s2Beat.ah; s2Beat.blocked = 'VA';
+    } else if (!isAtrialSite && inVAshortZone){
+      // El S2 retroconduce con VA acortado 20 ms (respecto del VA simultáneo — VA=0 — de la
+      // TRNAV sostenida): la A' retrógrada cae 20 ms antes del propio QRS del S2. QRS puro
+      // estimulado: no se fusiona con el latido propio de la taquicardia.
+      s2Beat.va = -20;
+      s2Beat.ta = s2Beat.tv - 20;
+      delete s2Beat.th; delete s2Beat.ah; delete s2Beat.blocked;
+      s2Beat.noFuse = true;
+    } else if (!isAtrialSite && terminated){
+      // Bloqueo en la aurícula: el S2 no retroconduce, y esto corta la TRNAV.
+      delete s2Beat.ta; delete s2Beat.th; delete s2Beat.ah; s2Beat.blocked = 'VA';
+    }
+    if (terminated){
+      // El corte se aplica de verdad recién cuando, en tiempo real, el cursor llega al punto donde
+      // arranca el sinusal — no en el instante de presionar "Estimular" — así se ve entregado el
+      // estímulo antes de que la taquicardia se dé por cortada.
+      const token = SENSED_CYCLE_TOKEN;
+      const speed = +document.getElementById('speed').value || 0.5;
+      const commitAtSimMs = stimTime + nextDelay;
+      setTimeout(() => {
+        if (SENSED_CYCLE_TOKEN === token){
+          AVNRT_INDUCED = false;
+          OVERDRIVE_TERMINATED = true;
+        }
+      }, Math.max(0, commitAtSimMs / speed));
+      let ts = stimTime + nextDelay;
+      for (let i=0; i<3; i++){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+      return {beats, nextTime: ts};
+    }
+    // En la zona sin cambios (prematurity<30), el latido auricular propio de la TRNAV sigue en su
+    // horario nativo (lastAtrialTh + cl), sin desplazarse por el S2 — en la zona 30-40 el intervalo
+    // que lo contiene se acorta 29 ms.
+    let th2 = (prematurity < 30) ? (lastAtrialTh + cl) : (lastAtrialTh + nextDelay);
+    for (let i=0; i<6; i++){ beats.push(makeSustainedTachyBeat(th2, INDUCED_TYPE, tachyLabel)); th2 += cl; }
+    // Si el QRS estimulado (S2) cae junto al QRS propio de la taquicardia (dentro de 60 ms), se
+    // dibuja uno solo — salvo en la zona 30-40 (QRS puro estimulado, nunca se fusiona).
+    if (!isAtrialSite && s2Beat.tv!=null && !s2Beat.noFuse){
+      const coincident = beats.find(b => b!==s2Beat && b.tv!=null && Math.abs(b.tv - s2Beat.tv) <= 60);
+      if (coincident){ delete coincident.tv; s2Beat.qrsCoincide = true; }
+    }
+    return {beats, nextTime: th2};
+  }
+
+  let resume = stimTime + Math.max(cl*1.6, 900);
+  for (let i=0;i<2;i++){
+    beats.push(inTachy ? makeSustainedTachyBeat(resume, INDUCED_TYPE, tachyLabel) : makeAtrialBeat(resume, cl, false, 'Sinus'));
+    resume += cl;
+  }
+  return {beats, nextTime: resume};
+}
+function buildOneSyncCycle(startTime, p){
+  if (SENSING_MODE) return buildSensedS2Cycle(startTime, p);
+  const beats = [];
+  const isAtrialSite = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+  const wenckN = isAtrialSite ? wenckPeriod(p.s1cl, CTX.ERP, CTX.wenckAnt) : wenckPeriod(p.s1cl, CTX.VERP, CTX.wenckRetro);
+  const wenckTarget = isAtrialSite ? computeAH(p.s1cl) : computeVA(p.s1cl);
+  let t = startTime;
+  const s1Times = [];
+  for (let i=0;i<8;i++){ s1Times.push(t); t += p.s1cl; }
+  const lastS1 = s1Times[s1Times.length-1];
+  s1Times.forEach((stim,i) => {
+    if (isAtrialSite){
+      if (wenckN==null || wenckTarget==null){
+        beats.push(makeAtrialBeat(stim, p.s1cl, true, 'S1'+(i+1)));
+      } else {
+        const pos = i % wenckN;
+        if (pos === wenckN-1) beats.push(makeAtrialBeatBlockedWenck(stim, p.s1cl, 'S1'+(i+1)));
+        else {
+          const ah = CTX.AH0 + (wenckTarget-CTX.AH0)*((pos+1)/(wenckN-1));
+          beats.push(makeAtrialBeatWithAH(stim, p.s1cl, 'S1'+(i+1), ah));
+        }
+      }
+    } else {
+      if (wenckN==null || wenckTarget==null){
+        beats.push(makeVentricularBeat(stim, p.s1cl, true, 'S1'+(i+1)));
+      } else {
+        const pos = i % wenckN;
+        if (pos === wenckN-1) beats.push(makeVentricularBeatBlockedWenck(stim, p.s1cl, 'S1'+(i+1)));
+        else {
+          const va = CTX.VA0 + (wenckTarget-CTX.VA0)*((pos+1)/(wenckN-1));
+          beats.push(makeVentricularBeatWithVA(stim, p.s1cl, 'S1'+(i+1), va));
+        }
+      }
+    }
+  });
+  const s2Time = lastS1 + p.ci2;
+  let s2Beat;
+  if (isAtrialSite) s2Beat = makeAtrialBeat(s2Time, p.ci2, true, 'S2', true);
+  else s2Beat = makeVentricularBeat(s2Time, p.ci2, true, 'S2', true);
+  beats.push(s2Beat);
+  const induced = isAtrialSite && CTX.jumpEnabled && p.ci2 <= CTX.jumpCL && s2Beat.ah != null;
+  if (induced){
+    AVNRT_INDUCED = true; AVNRT_TCL = p.tachyCL; INDUCED_TYPE = INDUCE_TARGET;
+    const sustainedCL = p.tachyCL;
+    if (INDUCE_TARGET === 'AVRT'){
+      const locKey = document.getElementById('pathwayLoc').value;
+      const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+      const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+      const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+      const s2VA = (pwCfg.baseVA ?? 20) + earliestOff;
+      s2Beat.echoTa = s2Beat.tv + s2VA;
+      s2Beat.surfaceP = s2Beat.tv + 115;
+      s2Beat.ablationP = s2Beat.tv + s2VA + pwCfg.ablOff;
+      s2Beat.echoVisible = true;
+      s2Beat.pathway = locKey;
+      let th = s2Beat.tv + Math.max(60, sustainedCL - CTX.hv0);
+      const stopAt = s2Time + Math.max(CTX.sinusCL*1.6, 2500);
+      while (th < stopAt){
+        const tv = th + CTX.hv0, va = (pwCfg.baseVA ?? 20) + earliestOff, echoTa = tv + va;
+        const surfaceP = tv + 115, ablationP = tv + va + pwCfg.ablOff;
+        beats.push({origin:'A', label:'TRAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:95, th, tv, echoTa, surfaceP, ablationP, echoVisible:true, pathway:locKey});
+        th += sustainedCL;
+      }
+      return {beats, nextTime: stopAt};
+    }
+    const sustainedAH = Math.max(30, sustainedCL - CTX.hv0);
+    let th = s2Beat.tv + sustainedAH;
+    const stopAt = s2Time + Math.max(CTX.sinusCL*1.6, 2500);
+    while (th < stopAt){
+      const tv = th + CTX.hv0;
+      beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:sustainedAH, th, tv, echoTa:tv+35});
+      th += sustainedCL;
+    }
+    return {beats, nextTime: stopAt};
+  }
+  let resume = s2Time + Math.max(CTX.sinusCL*1.6, 900);
+  for (let i=0;i<2;i++){ beats.push(makeAtrialBeat(resume, CTX.sinusCL, false, 'Sinus')); resume += CTX.sinusCL; }
+  return {beats, nextTime: resume};
+}
+
+// --- Barrido tipo monitor: una vuelta (lap) dura SWEEP_MS. Al llegar al borde, vuelve al inicio
+// (x=0) y arranca una vuelta nueva — sin scroll ni crecimiento indefinido. En asincrónico, SWEEP_MS
+// se ajusta al ancho de pantalla según el mm/s elegido. En sincrónico, el ciclo completo (tren +
+// extraestímulo + retorno) puede durar más de lo que el mm/s elegido mostraría en una pantalla —
+// así que ahí la escala se autoajusta para que el ciclo entero SIEMPRE entre entero, extraestímulo
+// incluido, en vez de dejarlo cortado fuera de lo visible.
+let SWEEP_MS = 6000;
+let MODEL_TACHY_TYPE = null; // ningún modelo aparece seleccionado hasta que el usuario elija uno explícitamente
+// Secuencia de activación retrógrada por localización de la vía accesoria: offset (ms) del CS distal
+// y proximal (se interpola entre ambos según el bipolo), de la AD alta y del catéter de ablación —
+// 0 = el sitio que se activa primero.
+const PATHWAY_CONFIGS = {
+  leftLateral:     { baseVA:20, csDistalOff:0,  csProxOff:40, ablOff:55, hraOff:70, deltaSign:1 },
+  leftPosterior:   { baseVA:20, csCenter:2, csStep:10, ablOff:35, hraOff:50, deltaSign:-1 },
+  rightPostSeptal: { baseVA:30, csProxOff:0, csDistalOff:60, ablOff:30, hraOff:80, deltaSign:-1 },
+  rightLateral:    { baseVA:30, hraOff:0, ablOff:20, csProxOff:40, csDistalOff:100, deltaSign:1 },
+  parahisian:      { baseVA:30, ablOff:0, csProxOff:15, csDistalOff:63, hraOff:27, deltaSign:1 },
+};
+// Polaridad de la onda delta por derivación, según los criterios de localización de vías accesorias
+// (delta positiva/negativa/isoeléctrica en cada derivación). La vía lateral izquierda está tomada
+// de la literatura (delta positiva en precordiales anteriores, II/III/aVF; positiva o isoeléctrica
+// en I/aVL; isoeléctrica o negativa en V5/V6); las demás son aproximaciones razonables del mismo estilo.
+const DELTA_LEAD_SIGNS = {
+  leftLateral:     {DI:-1, DII:1, DIII:1, aVR:-1, aVL:-1, aVF:1, V1:1, V2:1, V3:1, V4:1, V5:1, V6:1},
+  leftPosterior:   {DI:1, DII:-1, DIII:-1, aVR:1, aVL:1, aVF:-1, V1:1, V2:1, V3:1, V4:1, V5:1, V6:1},
+  rightPostSeptal: {DI:1, DII:1, DIII:-1, aVR:1, aVL:1, aVF:-1, V1:-1, V2:1, V3:1, V4:1, V5:1, V6:1},
+  rightLateral:    {DI:1, DII:1, DIII:-1, aVR:-1, aVL:1, aVF:1, V1:'none', V2:'none', V3:'none', V4:0.4, V5:1, V6:1},
+  parahisian:      {DI:1, DII:1, DIII:1, aVR:-1, aVL:1, aVF:1, V1:-1, V2:0.3, V3:0.5, V4:0.7, V5:0.85, V6:1},
+};
+function deltaSignForLead(pathway, leadKey){
+  const map = DELTA_LEAD_SIGNS[pathway];
+  if (!map) return 1;
+  const key = (leadKey==='D1') ? 'DI' : (leadKey==='D2') ? 'DII' : leadKey;
+  const v = map[key];
+  return (v==null) ? 1 : v;
+}
+function qrsAmplitudeScale(leadKey){
+  // Progresión normal de precordiales: V1 de menor amplitud que V2-V6 (que crecen y se mantienen altas).
+  const key = (leadKey==='D1') ? 'DI' : (leadKey==='D2') ? 'DII' : leadKey;
+  if (key==='V1') return 0.6;
+  return 1;
+}
+// Tiempos locales (A a V) por catéter, específicos de la vía parahisiana en ritmo sinusal: el
+// catéter de ablación (muy cerca de la vía) muestra un AH/HV locales muy cortos; la AD alta y el
+// CS 9-10 (más lejos) un AV combinado de 100 ms; el resto del CS se va estirando de a 20 ms.
+const PARAHISIAN_SINUS_TIMING = {
+  AblD: {ah:10, hv:5},
+  AblP: {ah:30, hv:10},
+};
+const PARAHISIAN_CS_AV = {0:80, 1:110, 2:120, 3:130, 4:140}; // csIdx: CS9-10(0)=80, CS7-8(1)=110, CS5-6(2)=120, CS3-4(3)=130, CS1-2(4)=140
+const PARAHISIAN_HRA_AV = 80;
+// Vía posterior izquierda en ritmo sinusal: el AV más corto es el CS 5-6 (centro), se estira de a
+// 10 ms en forma simétrica hacia el CS distal y proximal, luego la ablación, y por último la AD alta.
+const LEFTPOST_CS_CENTER = 2, LEFTPOST_CS_STEP = 10, LEFTPOST_CS_BASE_AV = 20;
+const LEFTPOST_ABL_AV = 55, LEFTPOST_HRA_AV = 70;
+// Vía postero septal derecha en ritmo sinusal: CS 9-10 con AV=10 ms, degradé de 10 ms por paso hacia
+// el resto del CS (más lejos = más tarde), y la ablación con el mismo AV que el CS 7-8.
+const RIGHTPOSTSEPT_CS_AV = {0:10, 1:30, 2:50, 3:70, 4:90}; // csIdx: CS9-10(0)=10 ... CS1-2(4)=90, paso de 20 ms
+const RIGHTPOSTSEPT_ABL_AV = RIGHTPOSTSEPT_CS_AV[1]; // = CS 7-8
+// Vía lateral derecha en ritmo sinusal: ablación con AV=100 ms, y el CS (de proximal a distal) se
+// va estirando desde 120 ms, de a 20 ms por paso.
+const RIGHTLATERAL_ABL_AV = 100;
+const RIGHTLATERAL_CS_AV = {0:120, 1:130, 2:140, 3:150, 4:160}; // csIdx: CS9-10(0)=120 ... CS1-2(4)=160, paso de 10 ms
+function leftPostCsAV(csIdx){ return LEFTPOST_CS_BASE_AV + LEFTPOST_CS_STEP*Math.abs(csIdx-LEFTPOST_CS_CENTER); }
+// Morfología especial de la segunda mitad (normalizada) del complejo preexcitado, para derivaciones
+// puntuales que necesitan un patrón particular (por ahora, 'Rs': R alta + s chica).
+const DELTA_MORPHOLOGY = {
+  rightPostSeptal: {DII:'Rs'},
+};
+function deltaMorphologyForLead(pathway, leadKey){
+  const map = DELTA_MORPHOLOGY[pathway];
+  if (!map) return null;
+  const key = (leadKey==='D1') ? 'DI' : (leadKey==='D2') ? 'DII' : leadKey;
+  return map[key] || null;
+}
+// Secuencia auricular genérica: dónde arranca la activación real según el sitio de estimulación
+// (o la AD alta, si es ritmo sinusal — origen natural en el nodo sinusal), y desde ahí se ordena
+// el resto de los catéteres por lejanía real a ese punto.
+const ATRIAL_STEP_MS = 12; // demora aproximada por cada "paso" de distancia entre catéteres
+function atrialChannelPos(kind, csIdx, retrograde){
+  if (retrograde){
+    // Conducción retrógrada (estimulando desde ventrículo): arranca cerca del nodo AV/septo
+    // (CS9-10) y la AD alta, al ser la más lejana, es la última en activarse — más tardía
+    // incluso que el CS distal.
+    if (kind==='hra') return 5;
+    if (kind==='cs') return csIdx; // CS9-10 (csIdx=0, cerca del septo)=0 ... CS1-2 (csIdx=4)=4
+    return null;
+  }
+  if (kind==='hra') return 0;
+  if (kind==='cs') return 1 + csIdx; // CS9-10 (prox., csIdx=0)=1 ... CS1-2 (dist., csIdx=4)=5
+  return null;
+}
+function pacingOriginPos(site){
+  if (site==='HRA') return 0;
+  if (site==='CSprox') return 1; // CS9-10
+  if (site==='CSdist') return 5; // CS1-2
+  return 0;
+}
+function genericAtrialOffset(kind, csIdx, beat){
+  const retrograde = (CTX.site==='VDapex' || CTX.site==='VDbasal' || CTX.site==='AblD');
+  const chPos = atrialChannelPos(kind, csIdx, retrograde);
+  const originPos = retrograde ? 0 : (beat.isPaced ? pacingOriginPos(CTX.site) : 0); // sinusal: arranca en la AD alta
+  return Math.abs(chPos - originPos) * ATRIAL_STEP_MS;
+}
+function onPreexcitationChange(){
+  PREEXCITATION_ENABLED = document.getElementById('preexcitationEnabled').checked;
+  document.getElementById('pathwayAnteERPRow').style.display = PREEXCITATION_ENABLED ? 'flex' : 'none';
+  document.getElementById('hv0').value = PREEXCITATION_ENABLED ? 15 : 35;
+  onCycleParamChange();
+}
+function selectModelTachy(type){
+  activeMode = 'MODELS';
+  MODEL_TACHY_TYPE = type;
+  ACTIVE_MANIOBRA = null;
+  AVNRT_INDUCED = false;
+  STIMULATING = false; // siempre arranca en ritmo sinusal, sin importar el modelo elegido
+  document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = false; }); // evita que quede "Asincrónica" marcada mientras se está en un modelo
+  document.getElementById('entrainParamsRow').style.display = 'none';
+  document.getElementById('pathwayLocRow').style.display = (type==='AVRT') ? 'flex' : 'none';
+  document.getElementById('preexcitationRow').style.display = (type==='AVRT') ? 'flex' : 'none';
+  document.getElementById('pathwayRetroERPRow').style.display = (type==='AVRT') ? 'flex' : 'none';
+  if (type!=='AVRT'){
+    document.getElementById('preexcitationEnabled').checked = false;
+    PREEXCITATION_ENABLED = false;
+    document.getElementById('pathwayAnteERPRow').style.display = 'none';
+  }
+  if (type==='AVNRT'){
+    // Activa el salto de vía (umbral 320 ms) y el ciclo de taquicardia sostenida (300 ms) por
+    // defecto — el S2 lo programa el usuario con las flechitas, no se fija automáticamente.
+    // También activa por defecto el modo Asincrónico con Inducción S1S1 (ciclo 320 ms), listo
+    // para inducir con solo presionar "Estimular".
+    document.getElementById('jumpEnabled').checked = true;
+    document.getElementById('jumpCL').value = 320;
+    document.getElementById('tachyCL').value = 300;
+    document.getElementById('s1InductionEnabled').checked = true;
+    document.getElementById('s1InductionCL').value = 320;
+    activeMode = 'ASYNC';
+    document.querySelector('input[name=mode][value=ASYNC]').checked = true;
+    INDUCE_TARGET = 'AVNRT';
+    document.getElementById('s2InduceLabel').textContent = 'TRNAV';
+  } else if (type==='AVRT'){
+    INDUCE_TARGET = 'AVRT';
+    document.getElementById('s2InduceLabel').textContent = 'TRAV';
+    document.getElementById('jumpEnabled').checked = true;
+    document.getElementById('jumpCL').value = 320;
+    document.getElementById('tachyCL').value = 300;
+    document.getElementById('s1InductionEnabled').checked = true;
+    document.getElementById('s1InductionCL').value = 320;
+  }
+  updateModelButtons();
+  updateModeVisibility();
+  renderAll();
+}
+let ACTIVE_MANIOBRA = null;
+let AVNRT_INDUCED = false; // queda en true (permanente) desde que se induce, hasta que se realiza una maniobra
+let AVNRT_TCL = 300; // ciclo de la TRNAV ya inducida (por el protocolo S1S1+S2 o por S1S1 rápido continuo)
+let INDUCE_TARGET = 'AVNRT'; // qué taquicardia induce Sincrónico/Asincrónico: 'AVNRT' o 'AVRT'
+let INDUCED_TYPE = 'AVNRT'; // qué taquicardia quedó efectivamente sostenida (una vez inducida)
+let OVERDRIVE_TERMINATED = false; // true una vez que la TRAV se cortó por sobreestimulación (vuelve a sinusal de forma estable, hasta el próximo "Estimular")
+let PREEXCITATION_ENABLED = false; // preexcitación manifiesta (TRAV): HV -10 ms y onda delta en sinusal
+let STIMULATING = false; // arranca sin estimular: ritmo sinusal basal a 75/min hasta apretar "Estimular"
+function buildSinusOnlyBeats(upToMs){
+  const beats = [];
+  let t = 0;
+  while (t < upToMs){ beats.push(makeAtrialBeat(t, CTX.sinusCL, false, 'Sinus')); t += CTX.sinusCL; }
+  return beats;
+}
+function makeSustainedTachyBeat(th, type, label){
+  // Un latido de la taquicardia sostenida (TRNAV o TRAV), reutilizando la misma secuencia de la
+  // vía que en buildTachyBeats — usado como bloque común por varias maniobras.
+  const tv = th + CTX.hv0;
+  const beat = {origin:'A', label, isPaced:false, isExtra:false, ah:th, th, tv};
+  if (type==='AVRT'){
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    const va = (pwCfg.baseVA ?? 20) + earliestOff;
+    beat.echoTa = tv + va;
+    beat.surfaceP = tv + 115;
+    beat.ablationP = tv + va + pwCfg.ablOff;
+    beat.echoVisible = true;
+    beat.pathway = locKey;
+  } else {
+    beat.echoTa = tv + 35;
+  }
+  return beat;
+}
+function buildHisRefractoryExtrastim(p, upToMs){
+  // Extraestímulo con His refractario: los primeros 8 latidos son SENSADOS (no estimulados) —
+  // reflejan la taquicardia sostenida tal cual. Después se entrega un único extraestímulo
+  // ventricular (S2) desde el sitio elegido (VD apical o basal), tomando como referencia la
+  // activación ventricular más precoz (el último latido sensado).
+  //  - Prematurez < 20 ms: el ventrículo sigue refractario, no captura (sin efecto).
+  //  TRAV: 20–40 ms fusión manifiesta (VA se acorta 20 ms cada 20 ms de prematurez); 40–60 ms QRS
+  //  puro (VA propio de la vía, sigue conduciendo); > 60 ms termina.
+  //  TRNAV: 20–30 ms fusión manifiesta (VA SIN cambios); 30–60 ms QRS puro (VA se acorta lo mismo
+  //  que la diferencia entre el ciclo de la taquicardia y el del extraestímulo); > 60 ms termina.
+  const TCL = AVNRT_TCL || p.tachyCL;
+  const type = INDUCED_TYPE || p.tachyType;
+  const label = (type==='AVRT') ? 'TRAV' : 'TRNAV';
+  const isVD = (p.site==='VDapex' || p.site==='VDbasal');
+  const s2 = +document.getElementById('hisRefrS2').value;
+  const beats = [];
+  let th = 0;
+  for (let i=0; i<8; i++){ beats.push(makeSustainedTachyBeat(th, type, label)); th += TCL; }
+
+  if (!isVD){
+    while (th < upToMs){ beats.push(makeSustainedTachyBeat(th, type, label)); th += TCL; }
+    return {beats, ready:false};
+  }
+
+  const lastVTime = (th - TCL) + CTX.hv0; // activación ventricular más precoz (última sensada)
+  const stimTime = lastVTime + s2;
+  const prematurity = TCL - s2;
+  const baseVA = Math.max(30, TCL - CTX.hv0);
+  const fusionUpper = (type==='AVRT') ? 40 : 30;
+  let vpbBeat, terminated = false, continues = false;
+
+  if (prematurity < 20){
+    vpbBeat = {origin:'V', label:'VPB', isPaced:true, isExtra:true, CI:s2, stimTime, blocked:'refr'};
+  } else if (prematurity <= fusionUpper){
+    const va = (type==='AVRT') ? Math.max(10, baseVA - prematurity) : baseVA; // TRNAV: VA sin cambios
+    vpbBeat = {origin:'V', label:'VPB', isPaced:true, isExtra:true, CI:s2, tv:stimTime, stimTime, fusionQRS:true, echoTa: stimTime + va};
+    continues = true;
+  } else if (prematurity <= 60){
+    let va;
+    if (type==='AVRT'){
+      const locKey = document.getElementById('pathwayLoc').value;
+      const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+      const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+      va = (pwCfg.baseVA ?? 20) + Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    } else {
+      va = Math.max(10, baseVA - prematurity); // TRNAV: se acorta lo mismo que TCL-S2
+    }
+    vpbBeat = {origin:'V', label:'VPB', isPaced:true, isExtra:true, CI:s2, tv:stimTime, stimTime, narrow:true, echoTa: stimTime + va};
+    continues = true;
+  } else {
+    terminated = true;
+    vpbBeat = {origin:'V', label:'VPB', isPaced:true, isExtra:true, CI:s2, tv:stimTime, stimTime, narrow:true};
+  }
+  beats.push(vpbBeat);
+
+  if (terminated){
+    AVNRT_INDUCED = false;
+    OVERDRIVE_TERMINATED = true;
+    let ts = stimTime + CTX.sinusCL;
+    while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  } else if (continues){
+    let th2 = (vpbBeat.echoTa ?? stimTime) + baseVA;
+    while (th2 < upToMs){ beats.push(makeSustainedTachyBeat(th2, type, label)); th2 += TCL; }
+  } else {
+    let th2 = lastVTime + TCL;
+    while (th2 < upToMs){ beats.push(makeSustainedTachyBeat(th2, type, label)); th2 += TCL; }
+  }
+  return {beats, ready:true, prematurity};
+}
+function buildEntrainmentBeats(p, upToMs){
+  // Encarrilamiento (entrainment) desde VD durante TRNAV típica — usa el Ciclo S1 y el Sitio de
+  // estimulación reales que el usuario programa en "Modo de estimulación" (VD apical o basal),
+  // no un valor separado: así se reproduce la maniobra estimulando desde el propio polígrafo.
+  // - TCL basal = ciclo de la taquicardia (p.tachyCL).
+  // - Estimulación en VD al ciclo (p.s1cl) que el usuario elija — debe ser más corto que la TCL.
+  // - QRS estimulado puro: mantiene la misma morfología angosta que en taquicardia.
+  // - VA estirado 30 ms durante la estimulación ventricular (vs. VA≈0 de la TRNAV basal).
+  // - Al detener la estimulación, la taquicardia retorna con PPI − TCL esperado (configurable, >125 ms).
+  const TCL = p.tachyCL;
+  const ppiMinusTCL = +document.getElementById('entrainPPIminusTCL').value;
+  const entrainCL = p.s1cl;
+  const isVD = (p.site==='VDapex' || p.site==='VDbasal');
+  const beats = [];
+
+  let th = 0;
+  for (let i=0; i<3; i++){
+    const tv = th + CTX.hv0;
+    beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:TCL, ah:Math.max(30,TCL-CTX.hv0), th, tv, echoTa:tv+35});
+    th += TCL;
+  }
+
+  if (!isVD || entrainCL >= TCL){
+    // Sin estimulación válida programada (falta sitio VD, o el ciclo no es más corto que la TCL):
+    // se sigue viendo la TRNAV basal, a la espera de que el usuario programe la estimulación.
+    while (th < upToMs){
+      const tv = th + CTX.hv0;
+      beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:TCL, ah:Math.max(30,TCL-CTX.hv0), th, tv, echoTa:tv+35});
+      th += TCL;
+    }
+    return {beats, TCL, entrainCL, PPI:null, ppiMinusTCL:null, ready:false};
+  }
+
+  let stim = th;
+  let lastStim = stim;
+  for (let i=0; i<6; i++){
+    // VA durante la estimulación ventricular estirado 30 ms (vs. VA≈0 de la TRNAV basal) —
+    // el eco auricular retrógrado no es simultáneo con la V estimulada, sino 30 ms después.
+    beats.push({origin:'V', label:'VD'+(i+1), isPaced:true, isExtra:false, CI:entrainCL, tv:stim, stimTime:stim, blocked:'VA', narrow:true, echoTa:stim+30});
+    lastStim = stim;
+    stim += entrainCL;
+  }
+
+  const PPI = TCL + ppiMinusTCL;
+  let returnTh = lastStim + PPI - CTX.hv0;
+  while (returnTh < upToMs){
+    const tv = returnTh + CTX.hv0;
+    beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:TCL, ah:Math.max(30,TCL-CTX.hv0), th:returnTh, tv, echoTa:tv+35});
+    returnTh += TCL;
+  }
+  return {beats, TCL, entrainCL, PPI, ppiMinusTCL, ready:true};
+}
+function selectManiobra(maniobra){
+  ACTIVE_MANIOBRA = maniobra;
+  AVNRT_INDUCED = false; // realizar una maniobra termina el estado de "inducida permanente"
+  document.getElementById('entrainParamsRow').style.display = (maniobra==='entrainment') ? 'flex' : 'none';
+  document.getElementById('hisRefrParamsRow').style.display = (maniobra==='hisRefr') ? 'flex' : 'none';
+  renderAll();
+}
+function updateModelButtons(){
+  document.querySelectorAll('.model-btn').forEach(btn => {
+    const selected = btn.dataset.model === MODEL_TACHY_TYPE;
+    const inTachy = selected && AVNRT_INDUCED && INDUCED_TYPE === btn.dataset.model;
+    if (inTachy){
+      btn.style.background = '#0a1257'; // azul oscuro: la taquicardia está efectivamente activa
+      btn.style.color = '#ffffff';
+      btn.style.fontWeight = '700';
+    } else {
+      btn.style.background = selected ? '#7fd4f0' : 'var(--panel2)'; // celeste: seleccionada, aún no activa
+      btn.style.color = selected ? '#0a2233' : 'var(--text)';
+      btn.style.fontWeight = selected ? '600' : '500';
+    }
+  });
+}
+function getContainerWidth(){
+  const el = document.getElementById('traceScrollMain');
+  return (el && el.clientWidth) ? Math.max(50, el.clientWidth - 2) : 900;
+}
+// --- Taquicardias: patrones sostenidos y repetitivos (no estimulados), pensados para reconocer
+// el mecanismo por la relación A-V, el sitio de origen y la morfología del QRS.
+function buildAVNRTInduction(p, extraMs){
+  // TRNAV típica: arranca en ritmo sinusal. El usuario programa el tren S1S1 + extraestímulo S2;
+  // si el S2 cae en la zona de "salto de vía" (con el salto activado), el AH salta a la vía lenta
+  // y se induce la taquicardia sostenida a partir de ahí. Si no, vuelve a ritmo sinusal.
+  const beats = [];
+  let t = 0;
+  for (let i=0; i<3; i++){ beats.push(makeAtrialBeat(t, CTX.sinusCL, false, 'Sinus')); t += CTX.sinusCL; }
+  const s1Times = [];
+  for (let i=0; i<8; i++){ s1Times.push(t); t += p.s1cl; }
+  s1Times.forEach((stim,i) => {
+    const beat = makeAtrialBeat(stim, p.s1cl, true, 'S1'+(i+1));
+    delete beat.echoTa; // el tren nunca muestra eco: un solo A por cada V
+    beats.push(beat);
+  });
+  const lastS1 = s1Times[s1Times.length-1];
+  const s2Time = lastS1 + p.ci2;
+  const s2Beat = makeAtrialBeat(s2Time, p.ci2, true, 'S2', true);
+  beats.push(s2Beat);
+
+  const induced = CTX.jumpEnabled && p.ci2 <= CTX.jumpCL && s2Beat.ah != null;
+  if (induced){ AVNRT_INDUCED = true; AVNRT_TCL = p.tachyCL; INDUCED_TYPE = p.tachyType; }
+  let totalMs;
+  if (induced && p.tachyType==='AVRT'){
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    const sustainedCL = p.tachyCL;
+    // El propio S2 que induce ya muestra la retroconducción por la vía seleccionada (no solo los
+    // latidos sostenidos que le siguen).
+    const s2VA = (pwCfg.baseVA ?? 20) + earliestOff;
+    s2Beat.echoTa = s2Beat.tv + s2VA;
+    s2Beat.surfaceP = s2Beat.tv + 115;
+    s2Beat.ablationP = s2Beat.tv + s2VA + pwCfg.ablOff;
+    s2Beat.echoVisible = true;
+    s2Beat.pathway = locKey;
+    const ahFirst = Math.max(60, sustainedCL - CTX.hv0);
+    let th = s2Beat.tv + ahFirst;
+    const stopAt = s2Beat.tv + extraMs;
+    while (th < stopAt){
+      const tv = th + CTX.hv0, va = (pwCfg.baseVA ?? 20) + earliestOff, echoTa = tv + va;
+      const surfaceP = tv + 115, ablationP = tv + va + pwCfg.ablOff;
+      beats.push({origin:'A', label:'TRAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:95, th, tv, echoTa, surfaceP, ablationP, echoVisible:true, pathway:locKey});
+      th += sustainedCL;
+    }
+    totalMs = stopAt;
+  } else if (induced){
+    // El ciclo de la taquicardia sostenida es configurable (p.tachyCL), no derivado del AH del S2.
+    const sustainedCL = p.tachyCL, sustainedAH = Math.max(30, sustainedCL - CTX.hv0);
+    // El eco de S2 (VA simultáneo, dentro de su propio QRS) dispara el reingreso: el próximo H
+    // llega recién tras conducir por la vía lenta, no en el mismo instante que ese eco.
+    s2Beat.echoTa = s2Beat.tv + 35;
+    let th = s2Beat.tv + sustainedAH;
+    const stopAt = s2Beat.tv + extraMs;
+    while (th < stopAt){
+      const tv = th + CTX.hv0;
+      beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:sustainedAH, th, tv, echoTa:tv+35});
+      th += sustainedCL;
+    }
+    totalMs = stopAt;
+  } else {
+    let resume = s2Time + Math.max(CTX.sinusCL*1.6, 900);
+    const stopAt = s2Time + extraMs;
+    while (resume < stopAt){ beats.push(makeAtrialBeat(resume, CTX.sinusCL, false, 'Sinus')); resume += CTX.sinusCL; }
+    totalMs = stopAt;
+  }
+  return {beats, totalMs, induced};
+}
+function buildTachyBeats(type, cycleMs, upToMs){
+  const beats = [];
+  if (type==='AVNRT'){
+    // Reentrada intranodal típica: circuito sostenido, una sola activación auricular por ciclo
+    // (el eco retrógrado, simultáneo con V) — no una "A" de entrada aparte cada vez.
+    let th = 0;
+    while (th < upToMs){
+      const ah = 165, tv = th+CTX.hv0;
+      beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:cycleMs, ah, th, tv, echoTa:tv+35});
+      th += cycleMs;
+    }
+  } else if (type==='AVRT'){
+    // Ortodrómica por vía accesoria: circuito sostenido, una sola activación auricular por ciclo
+    // (el eco retrógrado), separado de la V (a diferencia del VA simultáneo de la TRNAV).
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    let th = 0;
+    while (th < upToMs){
+      const ah = 95, tv = th+CTX.hv0, va = (pwCfg.baseVA ?? 20) + earliestOff, echoTa = tv+va; // el VA más corto = el sitio más temprano según la vía
+      const surfaceP = tv + 115; // onda P visible en el ECG de superficie: ~45 ms después del final del QRS
+      const ablationP = tv + va + pwCfg.ablOff; // catéter de ablación, según su distancia a la vía
+      beats.push({origin:'A', label:'TRAV', isPaced:false, isExtra:false, CI:cycleMs, ah, th, tv, echoTa, surfaceP, ablationP, echoVisible:true, pathway:locKey});
+      th += cycleMs;
+    }
+  } else if (type==='PJRT'){
+    // Taquicardia septal de RP largo (tipo PJRT): vía accesoria posteroseptal, decremental y lenta
+    // en sentido retrógrado — RP más largo que el PR, incesante. Activación septal (no eccéntrica).
+    let th = 0;
+    while (th < upToMs){
+      const ah = 90, tv = th+CTX.hv0, va = 220, echoTa = tv+va; // VA largo: RP > PR
+      const surfaceP = tv + 190; // P visible, bien alejada del QRS (RP largo)
+      beats.push({origin:'A', label:'RP largo', isPaced:false, isExtra:false, CI:cycleMs, ah, th, tv, echoTa, surfaceP, echoVisible:true, pathway:'septal'});
+      th += cycleMs;
+    }
+  } else if (type==='IRP'){
+    // Taquicardia septal de RP intermedio: VA entre el corto (TRNAV/TRAV típica) y el largo (PJRT).
+    let th = 0;
+    while (th < upToMs){
+      const ah = 90, tv = th+CTX.hv0, va = 150, echoTa = tv+va;
+      const surfaceP = tv + 130;
+      beats.push({origin:'A', label:'RP interm.', isPaced:false, isExtra:false, CI:cycleMs, ah, th, tv, echoTa, surfaceP, echoVisible:true, pathway:'septal'});
+      th += cycleMs;
+    }
+  } else if (type==='JET'){
+    // Taquicardia ectópica de la unión: foco automático juncional, QRS angosto, con disociación
+    // A-V (la aurícula sigue su ritmo sinusal propio, habitualmente más lento que la unión).
+    let t = 0;
+    const jetBeats = [];
+    while (t < upToMs){
+      jetBeats.push({origin:'V', label:'JET', isPaced:false, isExtra:false, CI:cycleMs, tv:t, blocked:'VA', narrow:true});
+      t += cycleMs;
+    }
+    let ts = 0;
+    const sinusCLUsed = CTX.sinusCL * 1.037;
+    while (ts < upToMs){
+      const hiddenOnSurface = jetBeats.some(v => ts >= v.tv - 5 && ts <= v.tv + 75);
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts, hiddenOnSurface});
+      ts += sinusCLUsed;
+    }
+    beats.push(...jetBeats);
+  } else if (type==='AT'){
+    // Foco auricular ectópico con conducción AV normal (decremental habitual).
+    let t = 0;
+    while (t < upToMs){
+      const ah = computeAH(cycleMs) ?? CTX.AH0, th = t+ah, tv = th+CTX.hv0;
+      beats.push({origin:'A', label:'TA', isPaced:false, isExtra:false, CI:cycleMs, ta:t, ah, th, tv, abnormalP:true});
+      t += cycleMs;
+    }
+  } else if (type==='AFL'){
+    // Flutter auricular con conducción 2:1 — el ciclo auricular es la mitad del ciclo de la
+    // taquicardia (que representa el ciclo ventricular/clínicamente visible).
+    const atrialCL = cycleMs/2;
+    const sawAhVal = computeAH(atrialCL) ?? CTX.AH0;
+    let t = 0, i = 0;
+    while (t < upToMs){
+      const egmTa = t + atrialCL/2; // el EGM intracavitario se marca en la mitad de la onda, no en el borde
+      if (i % 2 === 0){
+        const ah = sawAhVal, th = t+ah, tv = th+CTX.hv0;
+        beats.push({origin:'A', label:'F', isPaced:false, isExtra:false, CI:atrialCL, ta:t, egmTa, ah, th, tv, sawtooth:true, sawAh:sawAhVal});
+      } else {
+        beats.push({origin:'A', label:'F', isPaced:false, isExtra:false, CI:atrialCL, ta:t, egmTa, blocked:'AV', sawtooth:true, sawAh:sawAhVal});
+      }
+      t += atrialCL; i++;
+    }
+  } else if (type==='VT'){
+    // Origen ventricular, QRS ancho, con bloqueo V-A (disociación): la aurícula sigue su
+    // propio ritmo sinusal, más lento e independiente del ritmo ventricular.
+    let t = 0;
+    const vtBeats = [];
+    while (t < upToMs){
+      vtBeats.push({origin:'V', label:'VT', isPaced:false, isExtra:false, CI:cycleMs, tv:t, blocked:'VA'});
+      t += cycleMs;
+    }
+    let ts = 0;
+    const sinusCLUsed = CTX.sinusCL * 1.037; // pequeño desfasaje: evita que quede enganchada en armónico exacto con el ciclo de la TV
+    while (ts < upToMs){
+      // Si la P disociada coincide con un QRS ancho, se oculta en el ECG de superficie —
+      // pero sigue viéndose en los catéteres intracavitarios (AD alta, SC, ablación).
+      const hiddenOnSurface = vtBeats.some(v => ts >= v.tv - 5 && ts <= v.tv + 135);
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts, hiddenOnSurface});
+      ts += sinusCLUsed;
+    }
+    beats.push(...vtBeats);
+  }
+  return beats;
+}
+function buildS1InducedAVNRT(p, upToMs){
+  // S1S1 continuo a ciclo suficientemente corto: tras unos latidos de tren, el nodo AV
+  // conduce por la vía lenta y queda inducida la TRNAV sostenida — sin necesidad de extraestímulo.
+  const beats = [];
+  let t = 0;
+  const leadIn = 8;
+  let lastBeat = null;
+  for (let i=0; i<leadIn; i++){
+    const beat = makeAtrialBeat(t, p.s1cl, true, 'S1'+(i+1));
+    if (i < leadIn-1 || INDUCE_TARGET==='AVRT') delete beat.echoTa; // los primeros 7 no muestran eco (A simultánea con V); en TRAV, tampoco el 8vo
+    beats.push(beat);
+    if (beat.tv != null) lastBeat = beat;
+    t += p.s1cl;
+  }
+  if (!lastBeat){
+    // Ningún latido del tren condujo: no hay forma de inducir, seguir con pacing normal
+    while (t < upToMs){ beats.push(makeAtrialBeat(t, p.s1cl, true, 'S1')); t += p.s1cl; }
+    return beats;
+  }
+  // Ciclo sostenido = el programado en "Ciclo de la taquicardia", igual que con el otro método de
+  // inducción (no el que resultaría de la conducción natural al ritmo de estimulación).
+  const sustainedCL = +document.getElementById('tachyCL').value;
+  AVNRT_INDUCED = true;
+  AVNRT_TCL = sustainedCL;
+  INDUCED_TYPE = INDUCE_TARGET;
+  if (INDUCE_TARGET === 'AVRT'){
+    const locKey = document.getElementById('pathwayLoc').value;
+    const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
+    const csMinOff = (pwCfg.csCenter != null) ? 0 : Math.min(pwCfg.csDistalOff, pwCfg.csProxOff);
+    const earliestOff = Math.min(csMinOff, pwCfg.hraOff, pwCfg.ablOff);
+    // El último S1 (el que dispara la reentrada) ya muestra la retroconducción por la vía
+    // seleccionada, no solo los latidos sostenidos que le siguen.
+    const s1VA = (pwCfg.baseVA ?? 20) + earliestOff;
+    lastBeat.echoTa = lastBeat.tv + s1VA;
+    lastBeat.surfaceP = lastBeat.tv + 115;
+    lastBeat.ablationP = lastBeat.tv + s1VA + pwCfg.ablOff;
+    lastBeat.echoVisible = true;
+    lastBeat.pathway = locKey;
+    const ahFirst = Math.max(60, sustainedCL - CTX.hv0); // el primer latido sostenido respeta el ciclo (no queda pegado al último S1)
+    let th = lastBeat.tv + ahFirst;
+    while (th < upToMs){
+      const tv = th + CTX.hv0, va = (pwCfg.baseVA ?? 20) + earliestOff, echoTa = tv + va;
+      const surfaceP = tv + 115, ablationP = tv + va + pwCfg.ablOff;
+      beats.push({origin:'A', label:'TRAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:95, th, tv, echoTa, surfaceP, ablationP, echoVisible:true, pathway:locKey});
+      th += sustainedCL;
+    }
+    return beats;
+  }
+  const sustainedAH = Math.max(30, sustainedCL - CTX.hv0);
+  // Mismo criterio: el eco del último S1 dispara el reingreso, y el próximo H llega tras
+  // conducir por la vía lenta, no en el mismo instante que ese eco.
+  let th = lastBeat.tv + sustainedAH;
+  while (th < upToMs){
+    const tv = th + CTX.hv0;
+    beats.push({origin:'A', label:'TRNAV', isPaced:false, isExtra:false, CI:sustainedCL, ah:sustainedAH, th, tv, echoTa:tv+35});
+    th += sustainedCL;
+  }
+  return beats;
+}
+function buildOverdriveTermination(p, upToMs, TCL, stopAtMs){
+  // Sobreestimulación auricular continua durante TRNAV sostenida: corta la taquicardia apenas se
+  // estimula ≥20 ms más rápido que la TCL. Entre 20 y 50 ms más rápido: Wenckebach anterógrado 3:2.
+  // Más de 50 ms más rápido: bloqueo AV 2:1. Si se pasa stopAtMs, a partir de ese instante sigue con
+  // ritmo sinusal EN LA MISMA serie continua (sin cortar ni reiniciar el polígrafo).
+  const beats = [];
+  const fasterBy = TCL - p.s1cl;
+  const veryFast = fasterBy > 100; // zona extrema: la P vuelve a caer delante del QRS con AV de 30 ms
+  const wenckN = fasterBy > 50 ? 2 : 3; // 2:1 más allá de 50 ms más rápido, 3:2 entre 20 y 50 ms
+  // El AH de base es el mismo que tenía la TRNAV al inducirse (TCL - HV), con una prolongación
+  // moderada (hasta 40 ms extra) a medida que se estimula más rápido dentro de la zona de Wenckebach —
+  // así la aurícula le sigue ganando claramente al QRS, con un intervalo AH parecido al de la inducción.
+  const baselineAH = Math.max(30, TCL - CTX.hv0);
+  const prolongFrac = Math.min(1, Math.max(0, fasterBy/50));
+  const target = baselineAH + 40*prolongFrac;
+  const stimStop = (stopAtMs!=null) ? stopAtMs : upToMs;
+  // El ciclo se mide QRS a QRS (como en un registro real), espaciados exactamente al ritmo de
+  // estimulación (p.s1cl). La P se calcula hacia atrás desde cada QRS, así siempre cae claramente
+  // antes del QRS (nunca después ni encima), con una separación AV parecida a la de la inducción.
+  let tv = target + CTX.hv0, i = 0;
+  while (tv - target - CTX.hv0 < stimStop){
+    const pos = i % wenckN;
+    let beat;
+    if (pos === wenckN-1){
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta:tv, blocked:'AV', noAtrialSpread:true};
+    } else if (veryFast){
+      const ta = tv - 30 - CTX.hv0;
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, ah:30, th:ta+30, tv, noAtrialSpread:true};
+    } else {
+      const ah = baselineAH + (target-baselineAH)*((pos+1)/(wenckN-1));
+      const ta = tv - ah - CTX.hv0;
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, ah, th:ta+ah, tv, noAtrialSpread:true};
+    }
+    delete beat.echoTa; // estos latidos nunca muestran eco: un solo A por cada V
+    beats.push(beat);
+    tv += p.s1cl; i++;
+  }
+  if (stopAtMs != null){
+    // Corte manual en un instante puntual (se presionó "Detener"): sigue con ritmo sinusal a partir
+    // de ahí, en la misma serie continua (sin reiniciar el polígrafo).
+    let ts = stopAtMs;
+    while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  }
+  // Sin corte manual: la sobreestimulación (Wenckebach 3:2 o 2:1) sigue en forma continua mientras
+  // se la siga pacenado — no se autolimita a un número de latidos ni corta sola ni marca
+  // OVERDRIVE_TERMINATED.
+  // La P se oculta en el ECG de superficie SOLO si realmente se solapa con SU PROPIO QRS (el de ese
+  // mismo latido, no el de uno vecino) — sigue viéndose en los catéteres intracavitarios.
+  const P_HALF = 40; // ancho de la onda P (pWaveFeat)
+  const QRS_WIDTH = 70; // ancho del QRS angosto (conducción normal, qrsFeat) — tv es su inicio
+  beats.forEach(b => {
+    if (b.ta == null || b.tv == null || veryFast) return; // zona extrema: la P siempre se ve, delante del QRS con AV=30 ms
+    const pStart = b.ta - P_HALF, pEnd = b.ta + P_HALF;
+    const qStart = b.tv, qEnd = b.tv + QRS_WIDTH;
+    const overlap = Math.min(pEnd, qEnd) - Math.max(pStart, qStart);
+    if (overlap > 0) b.hiddenOnSurface = true; // cualquier solapamiento, por mínimo que sea
+  });
+  return beats;
+}
+function buildFailedInductionCapture(p, upToMs){
+  // Estimulando demasiado rápido para inducir (más de 30 ms por fuera de la ventana de inducción,
+  // tanto para TRNAV como para TRAV): captura 1:1 normal, sin arritmia, y pasa a ritmo sinusal en
+  // forma estable e inmediata tras el tren programado (Nº S1) — sin reiniciar el polígrafo. El AH
+  // de captura queda fijo y seguro (no depende del período refractario) para garantizar 1:1 limpio.
+  OVERDRIVE_TERMINATED = true;
+  const beats = [];
+  const n = Math.max(1, p.n || 8);
+  const ah = Math.max(30, Math.min(CTX.AH0, p.s1cl - 40));
+  let t = elapsedMs;
+  for (let i=0; i<n; i++){
+    const tv = t + ah + CTX.hv0;
+    beats.push({origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta:t, ah, th:t+ah, tv});
+    t += p.s1cl;
+  }
+  let ts = t;
+  while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  return beats;
+}
+function buildAVRTOverdriveCapture(p, upToMs){
+  // Sobreestimulación auricular ≥30 ms más rápida que la TRAV: el estímulo auricular captura de
+  // inmediato al ventrículo (conducción antegrada normal), y el EGM auricular retroconducido por
+  // la vía desaparece de inmediato (no gradual, a diferencia del Wenckebach de la TRNAV). Tras el
+  // tren programado (Nº S1), pasa a ritmo sinusal — la taquicardia queda cortada, en forma definitiva.
+  // El tren arranca justo en el instante actual (no en 0), para no generar un salto en el trazado.
+  // Si el ciclo de estimulación cae en o por debajo de 260 ms (cerca del período refractario), la
+  // conducción 1:1 fallaría (solo P sin QRS) — en ese caso se muestra un bloqueo AV 2:1 limpio en
+  // vez de bloqueo completo, y la taquicardia igual queda cortada.
+  OVERDRIVE_TERMINATED = true;
+  const beats = buildTachyBeats('AVRT', AVNRT_TCL, elapsedMs);
+  const n = Math.max(1, p.n || 8);
+  const force2to1 = p.s1cl <= 260 || p.s1cl <= CTX.ERP;
+  let t = elapsedMs;
+  if (force2to1){
+    const refCL = Math.max(p.s1cl, CTX.ERP + 15);
+    const ah = computeAH(refCL) ?? CTX.AH0 + 30;
+    for (let i=0; i<n; i++){
+      if (i % 2 === 1) beats.push(makeAtrialBeatBlockedWenck(t, p.s1cl, 'S1'+(i+1)));
+      else {
+        const beat = makeAtrialBeatWithAH(t, p.s1cl, 'S1'+(i+1), ah);
+        delete beat.echoTa;
+        beats.push(beat);
+      }
+      t += p.s1cl;
+    }
+  } else {
+    for (let i=0; i<n; i++){
+      const beat = makeAtrialBeat(t, p.s1cl, true, 'S1'+(i+1));
+      delete beat.echoTa; // captura inmediata: sin eco retrógrado
+      beats.push(beat);
+      t += p.s1cl;
+    }
+  }
+  let ts = t;
+  while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+  return beats;
+}
+function buildAsyncLapBeats(p){
+  if (OVERDRIVE_TERMINATED) return buildSinusOnlyBeats(SWEEP_MS + 500);
+  const isAtrialSite = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+  if (isAtrialSite && AVNRT_INDUCED){
+    if (INDUCED_TYPE==='AVNRT' && p.s1cl <= AVNRT_TCL - 20) return buildOverdriveTermination(p, SWEEP_MS + 500, AVNRT_TCL);
+    if (INDUCED_TYPE==='AVRT' && p.s1cl < AVNRT_TCL - 30) return buildAVRTOverdriveCapture(p, SWEEP_MS + 500);
+    // Ya inducida y no están sobreestimulando: sigue sostenida, sin repetir el tren cada vuelta.
+    return buildTachyBeats(INDUCED_TYPE, AVNRT_TCL, SWEEP_MS + 500);
+  }
+  const canAutoInduce = (INDUCE_TARGET==='AVNRT') || (INDUCE_TARGET==='AVRT' && !PREEXCITATION_ENABLED);
+  // Nota: dentro de la ventana de inducción (s1InductionCL-30 a s1InductionCL) ya NO se induce
+  // automáticamente mientras se sigue estimulando — captura 1:1 en forma continua, y la inducción
+  // (el último S1 disparando la reentrada, con la activación retroconducida) ocurre recién al
+  // presionar "Detener estimulación" (ver stopStimulation).
+  const beats = [];
+  const force2to1 = p.s1cl <= (isAtrialSite ? CTX.ERP : CTX.VERP); // solo al llegar al PRE (bloqueo
+                                                                    // completo matemático): se muestra
+                                                                    // un 2:1 estable en vez de asistolia,
+                                                                    // sin pisar el Wenckebach progresivo
+                                                                    // real por encima del PRE.
+  let wenckN, wenckTarget;
+  if (force2to1){
+    wenckN = 2;
+    const refCL = isAtrialSite ? Math.max(p.s1cl, CTX.ERP+15) : Math.max(p.s1cl, CTX.VERP+15);
+    wenckTarget = isAtrialSite ? (computeAH(refCL) ?? CTX.AH0+30) : (computeVA(refCL) ?? CTX.VA0+30);
+  } else {
+    wenckN = isAtrialSite ? wenckPeriod(p.s1cl, CTX.ERP, CTX.wenckAnt) : wenckPeriod(p.s1cl, CTX.VERP, CTX.wenckRetro);
+    wenckTarget = isAtrialSite ? computeAH(p.s1cl) : computeVA(p.s1cl);
+  }
+  let t = 0, i = 0;
+  while (t < SWEEP_MS + 500){
+    const stim = t;
+    let beat;
+    if (isAtrialSite){
+      if (wenckN==null || wenckTarget==null){
+        beat = makeAtrialBeat(stim, p.s1cl, true, 'S1'+(i+1));
+      } else {
+        const pos = i % wenckN;
+        if (pos === wenckN-1) beat = makeAtrialBeatBlockedWenck(stim, p.s1cl, 'S1'+(i+1));
+        else {
+          const ah = CTX.AH0 + (wenckTarget-CTX.AH0)*((pos+1)/(wenckN-1));
+          beat = makeAtrialBeatWithAH(stim, p.s1cl, 'S1'+(i+1), ah);
+        }
+      }
+    } else {
+      if (wenckN==null || wenckTarget==null){
+        beat = makeVentricularBeat(stim, p.s1cl, true, 'S1'+(i+1));
+      } else {
+        const pos = i % wenckN;
+        if (pos === wenckN-1) beat = makeVentricularBeatBlockedWenck(stim, p.s1cl, 'S1'+(i+1));
+        else {
+          const va = CTX.VA0 + (wenckTarget-CTX.VA0)*((pos+1)/(wenckN-1));
+          beat = makeVentricularBeatWithVA(stim, p.s1cl, 'S1'+(i+1), va);
+        }
+      }
+    }
+    beats.push(beat);
+    if (beat.origin === 'A'){
+      delete beat.echoTa; // mientras se sigue estimulando desde la aurícula: solo la aurícula
+                           // estimulada, nunca el eco retroconducido — ese solo aparece en el
+                           // último latido, al detener. (No aplica a la estimulación ventricular:
+                           // ahí el eco es la retroconducción real por la vía, latido a latido.)
+    }
+    t += p.s1cl; i++;
+  }
+  return beats;
+}
+function currentLapBeats(){
+  // Beats para el estado actual, SIN tocar CURRENT_PX/SWEEP_MS (para reusar en el panel de 12 derivaciones
+  // sin desincronizar la escala que ya está aplicada al polígrafo principal).
+  const p = getPacingParams();
+  if (!STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(SWEEP_MS + 500);
+  if (OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(SWEEP_MS + 500);
+  if (p.mode==='SYNC' && AVNRT_INDUCED && !SENSING_MODE){
+    if (INDUCED_TYPE==='AVNRT' && p.s1cl <= AVNRT_TCL - 20) return buildOverdriveTermination(p, SWEEP_MS + 500, AVNRT_TCL);
+    if (INDUCED_TYPE==='AVRT' && p.s1cl < AVNRT_TCL - 30) return buildAVRTOverdriveCapture(p, SWEEP_MS + 500);
+    return buildTachyBeats(INDUCED_TYPE, AVNRT_TCL, SWEEP_MS + 500);
+  }
+  if (p.mode==='SYNC') return buildOneSyncCycle(0, p).beats;
+  if (p.mode==='MODELS' && !STIMULATING) return buildSinusOnlyBeats(SWEEP_MS + 500);
+  if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && ACTIVE_MANIOBRA==='entrainment') return buildEntrainmentBeats(p, SWEEP_MS + 500).beats;
+  if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && ACTIVE_MANIOBRA==='hisRefr') return buildHisRefractoryExtrastim(p, SWEEP_MS + 500).beats;
+  if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && AVNRT_INDUCED) return buildTachyBeats(INDUCED_TYPE, p.tachyCL, SWEEP_MS + 500);
+  if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT')) return buildAVNRTInduction(p, 4000).beats;
+  if (p.mode==='MODELS') return buildTachyBeats(p.tachyType, p.tachyCL, SWEEP_MS + 500);
+  return buildAsyncLapBeats(p);
+}
+function rebuildLap(){
+  const p = getPacingParams();
+  CTX = Object.assign(getPhysio(), {s1cl: p.s1cl, site: p.site});
+  const containerW = getContainerWidth();
+  CURRENT_PX = mmsToPxPerMs(+document.getElementById('zoom').value);
+  let beats;
+  if (!STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')){
+    // Sin estimulación activada: solo ritmo sinusal basal, a pantalla completa.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildSinusOnlyBeats(SWEEP_MS + 500);
+  } else if (OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')){
+    // Se cortó por sobreestimulación: sinusal estable, en pantalla completa.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildSinusOnlyBeats(SWEEP_MS + 500);
+  } else if (p.mode==='SYNC' && AVNRT_INDUCED && !SENSING_MODE){
+    // Ya inducida: sigue sostenida en bucle continuo a pantalla completa, salvo que se esté
+    // sobreestimulando lo suficientemente rápido, en cuyo caso corta (igual que en asincrónico).
+    SWEEP_MS = containerW / CURRENT_PX;
+    if (INDUCED_TYPE==='AVNRT' && p.s1cl <= AVNRT_TCL - 20) beats = buildOverdriveTermination(p, SWEEP_MS + 500, AVNRT_TCL);
+    else if (INDUCED_TYPE==='AVRT' && p.s1cl < AVNRT_TCL - 30) beats = buildAVRTOverdriveCapture(p, SWEEP_MS + 500);
+    else beats = buildTachyBeats(INDUCED_TYPE, AVNRT_TCL, SWEEP_MS + 500);
+  } else if (p.mode==='SYNC'){
+    // La vuelta dura lo que dura el ciclo completo a la escala elegida — si no entra entero en
+    // pantalla, se puede desplazar (scroll) dentro de esa única vuelta; no se recorta ni se auto-ajusta.
+    const cycle = buildOneSyncCycle(0, p);
+    beats = cycle.beats;
+    SWEEP_MS = cycle.nextTime;
+  } else if (p.mode==='MODELS' && !STIMULATING){
+    // Cualquier modelo: arranca en ritmo sinusal basal hasta que se apriete "Estimular",
+    // sin importar cuál esté seleccionado.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildSinusOnlyBeats(SWEEP_MS + 500);
+  } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && ACTIVE_MANIOBRA==='entrainment'){
+    // Entrainment desde VD: la vuelta dura una pantalla completa, como en asincrónico.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildEntrainmentBeats(p, SWEEP_MS + 500).beats;
+  } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && ACTIVE_MANIOBRA==='hisRefr'){
+    // Extraestímulo con His refractario: pantalla completa.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildHisRefractoryExtrastim(p, SWEEP_MS + 500).beats;
+  } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && AVNRT_INDUCED){
+    // Ya inducida: queda permanente, en bucle continuo, hasta que se realice una maniobra.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildTachyBeats(INDUCED_TYPE, p.tachyCL, SWEEP_MS + 500);
+  } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT')){
+    // TRNAV o TRAV: arranca en ritmo sinusal basal, con el protocolo S1S1+S2 (salto de vía) que
+    // induce la taquicardia sostenida — igual que en sincrónico, puede necesitar desplazarse.
+    const ind = buildAVNRTInduction(p, 4000);
+    beats = ind.beats;
+    SWEEP_MS = ind.totalMs;
+  } else if (p.mode==='MODELS'){
+    // Ritmo sostenido: la vuelta dura una pantalla completa a la escala elegida, igual que en asincrónico.
+    SWEEP_MS = containerW / CURRENT_PX;
+    beats = buildTachyBeats(p.tachyType, p.tachyCL, SWEEP_MS + 500);
+  } else {
+    // Pacing continuo: la vuelta dura una pantalla completa a la escala elegida — salvo que haya
+    // una inducción S1S1 en curso, en cuyo caso se garantiza espacio para completar el tren de 8
+    // latidos y ver el inicio de la taquicardia sostenida (permitiendo scroll si no entra en una pantalla).
+    const screenMs = containerW / CURRENT_PX;
+    const isAtrialSiteNow = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+    const inducing = isAtrialSiteNow && !AVNRT_INDUCED && CTX.s1InductionEnabled && p.s1cl <= CTX.s1InductionCL && p.s1cl >= CTX.s1InductionCL - 30;
+    SWEEP_MS = inducing ? Math.max(screenMs, p.s1cl*8 + p.tachyCL*3) : screenMs;
+    beats = buildAsyncLapBeats(p);
+  }
+  document.getElementById('traceHost').innerHTML = buildSvg(beats, CURRENT_PX, SWEEP_MS);
+  refreshEcg12(beats);
+  const mainScroll = document.getElementById('traceScrollMain');
+  if (mainScroll) mainScroll.scrollLeft = 0;
+  const ecgScroll = document.getElementById('traceScroll12');
+  if (ecgScroll) ecgScroll.scrollLeft = 0;
+  updateReadout(beats);
+}
+
+function stimMark(x, cy, label){
+  return `<g><line x1="${x}" y1="${cy-20}" x2="${x}" y2="${cy-4}" stroke="#ffd166" stroke-width="2"/>`+
+         `<circle cx="${x}" cy="${cy-20}" r="2.2" fill="#ffd166"/></g>`;
+}
+function stimTickOverlay(x, cy){
+  // Palito recto delante de la P/QRS captada, como overlay aparte — no altera el trazo continuo.
+  return `<path d="M ${x} ${cy} L ${x} ${cy-14}" fill="none" stroke="#ffd166" stroke-width="1.8"/>`;
+}
+function pWaveFeat(x, cy, inverted, px){
+  const dir = inverted ? 1 : -1;
+  const halfW = 40*px;
+  return {xStart:x-halfW, xEnd:x+halfW, cmd:`Q ${x} ${cy+dir*3} ${x+halfW} ${cy}`};
+}
+function buildSawtoothTeeth(beats, px, cy){
+  // Serrucho continuo (sin línea isoeléctrica entre un diente y el siguiente): rama descendente
+  // lenta (curva) + ascendente rápida (recta). Se corta exactamente en el QRS de cada onda F
+  // conducida, para que el QRS quede limpio, y retoma justo después.
+  const amp = 9;
+  const times = beats.map(b=>b.ta).filter(v=>v!=null).sort((a,b)=>a-b);
+  const byTa = new Map();
+  beats.forEach(b => { if (b.ta!=null) byTa.set(b.ta, b); });
+  const feats = [];
+  function tooth(t0, t1){
+    if (t1 <= t0) return;
+    const x0 = t0*px, x1 = t1*px;
+    const xPeak = x0 + (x1-x0)*0.65; // pico bien marcado (más angular, tipo serrucho real)
+    feats.push({ xStart:x0, xEnd:x1, cmd:`L ${x0+(xPeak-x0)*0.3} ${cy+amp*1.7} L ${xPeak} ${cy+amp*1.9} L ${x1} ${cy}` });
+  }
+  for (let i=1; i<times.length-1; i++){
+    const t0 = times[i], t1 = times[i+1];
+    const b0 = byTa.get(t0);
+    if (b0 && b0.tv!=null){
+      const qrsStart = b0.th, qrsEnd = b0.tv + CTX.hv0;
+      if (qrsStart > t0) tooth(t0, Math.min(qrsStart, t1));
+      if (t1 > qrsEnd) tooth(Math.max(qrsEnd, t0), t1);
+    } else {
+      tooth(t0, t1);
+    }
+  }
+  return feats;
+}
+function deltaWaveFeat(x, cy, sign, px){
+  // Onda delta: empastamiento inicial lento del QRS (preexcitación), justo antes de la deflexión
+  // principal. La polaridad (sign) refleja la localización de la vía.
+  const w = 25*px;
+  return {xStart:x-w, xEnd:x, cmd:`Q ${x-w*0.4} ${cy - sign*7} ${x} ${cy}`};
+}
+function preexcitedQrsFeat(pEndTime, cy, sign, px, scale, type){
+  // Complejo QRS preexcitado, como un solo trazo continuo: arranca justo donde termina la onda P
+  // (sin segmento PR isoeléctrico). Primera mitad = onda delta (empastamiento lento, la polaridad
+  // según la vía). Segunda mitad = se normaliza (deflexión más rápida y de mayor amplitud) — 'Rs'
+  // agrega una s chica tras el pico principal, antes de volver a la basal.
+  scale = scale==null ? 1 : scale;
+  const half = 45*px;
+  const x0 = pEndTime, xMid = x0+half, xEnd = xMid+half;
+  const deltaPeak = cy - sign*7*scale;
+  const mainPeak = cy - sign*26*scale;
+  if (type==='Rs'){
+    return {xStart:x0, xEnd, cmd:`Q ${x0+half*0.5} ${deltaPeak} ${xMid} ${cy-sign*10*scale} L ${xMid+half*0.3} ${mainPeak} L ${xMid+half*0.7} ${cy+sign*6*scale} L ${xEnd} ${cy}`};
+  }
+  return {xStart:x0, xEnd, cmd:`Q ${x0+half*0.5} ${deltaPeak} ${xMid} ${cy-sign*10*scale} L ${xMid+half*0.4} ${mainPeak} L ${xEnd} ${cy}`};
+}
+function qrsFeat(x, cy, wide, px){
+  // 'x' es el INICIO del QRS.
+  const dur = (wide==='coincide' ? 90 : (wide ? 130 : 70)) * px;
+  const h = dur/2, cx = x + h;
+  if (!wide) return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.4} ${cy-4} L ${cx} ${cy-26} L ${cx+h*0.4} ${cy+8} L ${cx+h} ${cy}`};
+  return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.45} ${cy-6} L ${cx-h*0.1} ${cy-21} L ${cx+h*0.4} ${cy+15} L ${cx+h} ${cy}`};
+}
+function qrsFusionFeat(x, cy, px){
+  // Fusión manifiesta: QRS de ancho intermedio, algo menos ancho que el de la taquicardia (que
+  // sería 'wide') pero más ancho que el latido puramente estimulado angosto. 'x' es el inicio.
+  const dur = 100 * px;
+  const h = dur/2, cx = x + h;
+  return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.42} ${cy-5} L ${cx-h*0.05} ${cy-24} L ${cx+h*0.4} ${cy+11} L ${cx+h} ${cy}`};
+}
+function qrsFeatNeg(x, cy, px, wide){
+  // QRS ancho y predominantemente negativo (estimulación en VD apical: eje superior, negativo en DII).
+  // 'x' es el inicio del QRS.
+  const dur = (wide==='coincide' ? 90 : 130) * px;
+  const h = dur/2, cx = x + h;
+  return {xStart:x, xEnd:x+dur, cmd:`L ${cx-h*0.45} ${cy+6} L ${cx-h*0.1} ${cy+21} L ${cx+h*0.4} ${cy-15} L ${cx+h} ${cy}`};
+}
+function spikeFeat(x, cy, amp, px){
+  const halfW = Math.max(2, 6*px);
+  return {xStart:x-halfW, xEnd:x+halfW, cmd:`L ${x} ${cy-amp} L ${x+halfW} ${cy}`};
+}
+function hOverlay(x, cy, amp){
+  return `<path d="M ${x} ${cy} L ${x} ${cy-amp}" fill="none" stroke="#ffffff" stroke-width="1.8"/>`;
+}
+function letterLabel(x, cy, amp, color, letter){
+  return `<text x="${x-3}" y="${cy-amp-3}" font-size="9" fill="${color}" font-family="'IBM Plex Mono',monospace">${letter}</text>`;
+}
+function measurementAnnotation(b, cy, px){
+  if (b.ah==null && b.va==null) return '';
+  let text, mid;
+  if (b.ah!=null){ text = `AH ${Math.round(b.ah)}`; mid = b.ta!=null ? (b.ta + b.th)/2 : (b.th - b.ah/2); }
+  else { text = `VA ${Math.round(b.va)}`; mid = (b.tv + b.ta)/2; }
+  const x = mid*px;
+  return `<text x="${x-14}" y="${cy+30}" font-size="9.5" fill="#9be8b4" font-family="'IBM Plex Mono',monospace">${text}</text>`;
+}
+function buildContinuousPath(features, cy, width){
+  features.sort((a,b) => a.xStart - b.xStart);
+  let d = `M 0 ${cy}`;
+  features.forEach(f => { d += ` L ${f.xStart} ${cy} ${f.cmd}`; });
+  d += ` L ${width} ${cy}`;
+  return d;
+}
+
+function renderChannelTrace(ch, beats, cy, px, width){
+  const features = [];
+  let overlays = '';
+  let prevTv = null; // para anotar el ciclo (ms) entre QRS consecutivos, sólo en D2
+  const isFlutter = ch.kind==='surface' && beats.some(b => b.sawtooth);
+  if (isFlutter) buildSawtoothTeeth(beats, px, cy).forEach(f => features.push(f));
+  beats.forEach(b => {
+    if (b.stimTime!=null){
+      let stimChannel;
+      if (CTX.site==='HRA') stimChannel = 'HRA';
+      else if (CTX.site==='CSprox') stimChannel = 'CS910';
+      else if (CTX.site==='CSdist') stimChannel = 'CS12';
+      else if (CTX.site==='AblD') stimChannel = 'AblD';
+      else stimChannel = 'VD';
+      if (ch.key===stimChannel) overlays += stimMark(b.stimTime*px, cy, b.label);
+    }
+    if (b.blocked==='local') return;
+    if (ch.kind==='surface'){
+      if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
+      if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface){
+        let pInv = b.origin==='V';
+        if (ch.key==='D2' && b.origin==='A' && b.isPaced && (CTX.site==='CSprox' || CTX.site==='CSdist')) pInv = true;
+        if (b.abnormalP) pInv = true;
+        features.push(pWaveFeat(b.ta*px, cy, pInv, px));
+      }
+      if (b.echoVisible) features.push(pWaveFeat((b.surfaceP ?? b.echoTa)*px, cy, true, px));
+      if (b.tv!=null){
+        const dSign = b.hasDelta ? deltaSignForLead(b.deltaPathway, ch.key) : null;
+        if (b.fusionQRS){
+          features.push(qrsFusionFeat(b.tv*px, cy, px));
+        } else if (b.hasDelta && dSign !== 'none'){
+          features.push(preexcitedQrsFeat((b.ta+40)*px, cy, dSign, px, qrsAmplitudeScale(ch.key), deltaMorphologyForLead(b.deltaPathway, ch.key)));
+        } else if (b.hasDelta && ch.key==='V1'){
+          features.push(qrsShapeFeat((b.ta+75)*px, cy, px, 'rS', false));
+        } else if (b.hasDelta){
+          features.push(qrsFeat((b.ta+75)*px, cy, false, px));
+        } else if (ch.key==='D2' && b.origin==='V' && CTX.site==='VDapex' && !b.narrow){
+          features.push(qrsFeatNeg(b.tv*px, cy, px, b.qrsCoincide ? 'coincide' : true));
+        } else if (ch.key==='D2' && b.origin==='V' && !b.narrow){
+          features.push(qrsShapeFeat(b.tv*px, cy, px, 'Rs', b.qrsCoincide ? 'coincide' : true));
+        } else if (ch.key==='V1'){
+          features.push(qrsShapeFeat(b.tv*px, cy, px, 'rS', qrsWideState(b)));
+        } else {
+          features.push(qrsFeat(b.tv*px, cy, qrsWideState(b), px));
+        }
+        if (ch.key==='D2'){
+          if (prevTv!=null){
+            const mid = (prevTv + b.tv)/2 * px;
+            overlays += `<text x="${mid}" y="${cy-18}" font-size="9.5" fill="#6f8288" font-family="'IBM Plex Mono',monospace" text-anchor="middle">${Math.round(b.tv-prevTv)} ms</text>`;
+          }
+          prevTv = b.tv;
+        }
+      }
+    } else if (ch.kind==='ablation'){
+      const aT = b.egmTa ?? b.ta;
+      const parahisTiming = (b.hasDelta && b.deltaPathway==='parahisian') ? PARAHISIAN_SINUS_TIMING[ch.key] : null;
+      const isLeftPost = b.hasDelta && b.deltaPathway==='leftPosterior';
+      const isRightPostSept = b.hasDelta && b.deltaPathway==='rightPostSeptal';
+      const isRightLateral = b.hasDelta && b.deltaPathway==='rightLateral';
+      const localTh = parahisTiming ? aT + parahisTiming.ah : (isLeftPost ? aT + (LEFTPOST_ABL_AV - 20) : (isRightPostSept ? aT + (RIGHTPOSTSEPT_ABL_AV - 10) : (isRightLateral ? aT + (RIGHTLATERAL_ABL_AV - 20) : b.th)));
+      const localTv = parahisTiming ? localTh + parahisTiming.hv : (isLeftPost ? aT + LEFTPOST_ABL_AV : (isRightPostSept ? aT + RIGHTPOSTSEPT_ABL_AV : (isRightLateral ? aT + RIGHTLATERAL_ABL_AV : b.tv)));
+      const isVDretro = b.origin==='V' && !!b.pathway;
+      if (aT!=null && !isVDretro){ const x=aT*px; features.push(spikeFeat(x,cy,10,px)); overlays += letterLabel(x,cy,10,ch.color,'A'); }
+      if (localTh!=null){ const x=localTh*px; overlays += hOverlay(x,cy,7) + letterLabel(x,cy,7,'#ffffff','H'); }
+      if (localTv!=null){ const x=localTv*px; features.push(spikeFeat(x,cy,15,px)); overlays += letterLabel(x,cy,15,ch.color,'V'); }
+      if (b.echoTa!=null){
+        const echoDisplayT = b.ablationP ?? b.echoTa;
+        const x=echoDisplayT*px;
+        if (echoDisplayT !== b.tv && echoDisplayT !== aT) features.push(spikeFeat(x,cy,10,px));
+        overlays += letterLabel(x,cy,10,'#9be8b4','A\'');
+      }
+      overlays += measurementAnnotation(b, cy, px);
+    } else if (ch.kind==='cs'){
+      const pwCfg = PATHWAY_CONFIGS[b.pathway];
+      let off;
+      if (pwCfg && pwCfg.csCenter != null){
+        off = pwCfg.csStep * Math.abs(ch.csIdx - pwCfg.csCenter); // en V: más temprano en el centro, se abre hacia ambos lados
+      } else if (pwCfg){
+        const frac=(4-ch.csIdx)/4; off = pwCfg.csDistalOff + (pwCfg.csProxOff-pwCfg.csDistalOff)*frac;
+      } else off = (b.label==='TRNAV' || b.noAtrialSpread) ? ch.csIdx * 2 : genericAtrialOffset('cs', ch.csIdx, b); // TRNAV: retroconducción por la vía rápida, casi simultánea — pequeño decremento real (2 ms por electrodo) del CS proximal (csIdx=0, más cerca del septo/nodo AV) al distal (csIdx=4)
+      const aT = b.egmTa ?? b.ta;
+      if (aT!=null) features.push(spikeFeat(aT*px + off*px, cy, 12, px));
+      if (b.echoTa!=null) features.push(spikeFeat(b.echoTa*px + off*px, cy, 12, px));
+      if (b.hasDelta && b.deltaPathway==='parahisian'){
+        const localAV = PARAHISIAN_CS_AV[ch.csIdx] ?? 80;
+        features.push(spikeFeat((aT+off+localAV)*px, cy, 5, px));
+      } else if (b.hasDelta && b.deltaPathway==='leftPosterior'){
+        features.push(spikeFeat((aT+off+leftPostCsAV(ch.csIdx))*px, cy, 5, px));
+      } else if (b.hasDelta && b.deltaPathway==='rightPostSeptal'){
+        features.push(spikeFeat((aT+off+(RIGHTPOSTSEPT_CS_AV[ch.csIdx]??10))*px, cy, 5, px));
+      } else if (b.hasDelta && b.deltaPathway==='rightLateral'){
+        features.push(spikeFeat((aT+off+(RIGHTLATERAL_CS_AV[ch.csIdx]??120))*px, cy, 5, px));
+      } else if (b.tv!=null) features.push(spikeFeat(b.tv*px, cy, 5, px));
+    } else if (ch.kind==='vd'){
+      if (b.tv!=null) features.push(spikeFeat(b.tv*px, cy, 16, px));
+    } else if (ch.kind==='hra'){
+      const aT = b.egmTa ?? b.ta;
+      const hraOwnOff = (PATHWAY_CONFIGS[b.pathway] || b.label==='TRNAV' || b.noAtrialSpread) ? 0 : genericAtrialOffset('hra', null, b);
+      if (aT!=null) features.push(spikeFeat((aT+hraOwnOff)*px, cy, 14, px));
+      if (b.hasDelta && b.deltaPathway==='parahisian'){
+        features.push(spikeFeat((aT+hraOwnOff+PARAHISIAN_HRA_AV)*px, cy, 6, px));
+      } else if (b.hasDelta && b.deltaPathway==='leftPosterior'){
+        features.push(spikeFeat((aT+hraOwnOff+LEFTPOST_HRA_AV)*px, cy, 6, px));
+      }
+      if (b.echoTa!=null){
+        const pwCfg2 = PATHWAY_CONFIGS[b.pathway];
+        const hraDelay = pwCfg2 ? pwCfg2.hraOff : ((b.pathway==='left') ? 90 : hraOwnOff);
+        features.push(spikeFeat((b.echoTa+hraDelay)*px, cy, 14, px));
+      }
+    }
+  });
+  const path = `<path d="${buildContinuousPath(features, cy, width)}" fill="none" stroke="${ch.color}" stroke-width="1.6"/>`;
+  return path + overlays;
+}
+
+function buildSvg(beats, px, fixedDurationMs){
+  let maxT = fixedDurationMs;
+  if (maxT == null){
+    maxT = 0;
+    beats.forEach(b => { maxT = Math.max(maxT, b.ta||0, b.tv||0, b.th||0); });
+    maxT += 500;
+    maxT = Math.max(maxT, 900/px); // sin ancho fijo (compatibilidad): imponemos un mínimo razonable
+  }
+  const width = Math.round(maxT*px);
+  const height = TOP_PAD + CHANNELS.length*ROW_H + 20;
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  s += `<rect width="100%" height="100%" fill="#05080a"/>`;
+  for (let tms=0; tms*px<width; tms+=200){
+    const x = tms*px, major = tms%1000===0;
+    s += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="${major?'#1c2b30':'#0f1a1d'}" stroke-width="1"/>`;
+    if (major) s += `<text x="${x+4}" y="${height-6}" fill="#3d5a61" font-size="10" font-family="'IBM Plex Mono',monospace">${(tms/1000).toFixed(1)}s</text>`;
+  }
+  CHANNELS.forEach((ch,i) => {
+    const cy = TOP_PAD + i*ROW_H + ROW_H/2;
+    s += `<line x1="0" y1="${cy}" x2="${width}" y2="${cy}" stroke="#0d1518" stroke-width="1"/>`;
+  });
+  s += `<defs><clipPath id="revealClip"><rect id="clipRect" x="0" y="0" width="0" height="${height}"/></clipPath></defs>`;
+  s += `<g clip-path="url(#revealClip)">`;
+  CHANNELS.forEach((ch,i) => {
+    const cy = TOP_PAD + i*ROW_H + ROW_H/2;
+    s += renderChannelTrace(ch, beats, cy, px, width);
+  });
+  s += `</g>`;
+  s += `<line id="cursorLine" x1="0" y1="0" x2="0" y2="${height}" stroke="#ffffff" stroke-width="1.5" opacity="0.85"/>`;
+  s += `</svg>`;
+  CURRENT_MAX_T = maxT;
+  return s;
+}
+
+function updateReadout(beats){
+  updateModelButtons();
+  const box = document.getElementById('readout');
+  const mode = activeMode;
+  if (!STIMULATING && (mode==='ASYNC' || mode==='SYNC')){
+    box.textContent = 'Ritmo sinusal basal, sin estimulación (75/min). Programá el protocolo y apretá "Estimular" para empezar.';
+    return;
+  }
+  if (mode==='ASYNC' && AVNRT_INDUCED){
+    const p = getPacingParams();
+    if (p.s1cl <= AVNRT_TCL - 20){
+      const fasterBy = AVNRT_TCL - p.s1cl;
+      const zone = fasterBy > 50 ? 'Bloqueo AV 2:1' : 'Wenckebach anterógrado 3:2';
+      box.innerHTML = `<strong>${zone}</strong> — sobreestimulando la TRNAV (TCL ${Math.round(AVNRT_TCL)} ms) con S1 ${Math.round(p.s1cl)} ms (${Math.round(fasterBy)} ms más rápido). Apretá "Detener estimulación" para revertir a ritmo sinusal.`;
+    } else {
+      box.innerHTML = `<strong>TRNAV inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(AVNRT_TCL)} ms). Estimulá desde auricular ≥20 ms más rápido para cortarla (Wenckebach hasta 50 ms, 2:1 más allá).`;
+    }
+    return;
+  }
+  if (mode==='MODELS'){
+    if (MODEL_TACHY_TYPE==='AVNRT' && ACTIVE_MANIOBRA==='entrainment'){
+      const p = getPacingParams();
+      const r = buildEntrainmentBeats(p, 1);
+      if (!r.ready){
+        box.innerHTML = `TRNAV basal (TCL ${Math.round(r.TCL)} ms). Programá arriba, en "Modo de estimulación": Sitio = VD apical o basal, y Ciclo S1 &lt; ${Math.round(r.TCL)} ms, para encarrilar.`;
+        return;
+      }
+      box.innerHTML = `<strong>Entrainment desde VD</strong> — TCL basal ${Math.round(r.TCL)} ms · CL de estimulación ${Math.round(r.entrainCL)} ms (programado por vos) · QRS estimulado puro (misma morfología angosta) · VA estirado 30 ms durante la estimulación · tren de 6 latidos · PPI ${Math.round(r.PPI)} ms → <strong>PPI − TCL = ${Math.round(r.ppiMinusTCL)} ms</strong> (${r.ppiMinusTCL>125 ? 'compatible' : 'no compatible'}: debe dar > 125 ms).`;
+      return;
+    }
+    if (MODEL_TACHY_TYPE==='AVNRT'){
+      const p = getPacingParams();
+      if (AVNRT_INDUCED){ box.innerHTML = `<strong>TRNAV inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(p.tachyCL)} ms) hasta que realices una maniobra.`; return; }
+      const s2Beat = beats.find(b => b.isExtra);
+      if (!s2Beat){ box.textContent = 'TRNAV típica: ritmo sinusal basal. Programá el tren S1S1 (cualquier ciclo) y el S2 para intentar inducirla.'; return; }
+      const induced = CTX.jumpEnabled && p.ci2 <= CTX.jumpCL && s2Beat.ah != null;
+      if (!CTX.jumpEnabled){
+        box.innerHTML = `S2 ${Math.round(p.ci2)} ms — activá "Salto de vía" en parámetros fisiológicos para poder inducir la TRNAV.`;
+      } else if (induced){
+        box.innerHTML = `<strong>¡TRNAV inducida!</strong> S2 ${Math.round(p.ci2)} ms ≤ umbral de salto (${Math.round(CTX.jumpCL)} ms) — eco auricular (VA simultáneo) y taquicardia sostenida a ${Math.round(p.tachyCL)} ms.`;
+      } else if (s2Beat.ah != null){
+        box.innerHTML = `No se indujo. S2 ${Math.round(p.ci2)} ms — todavía por encima del umbral de salto (${Math.round(CTX.jumpCL)} ms). AH = ${Math.round(s2Beat.ah)} ms.`;
+      } else {
+        box.innerHTML = `No se indujo. S2 ${Math.round(p.ci2)} ms bloqueó en el nodo AV (por debajo del PRE, ≈${CTX.ERP} ms) antes de poder saltar.`;
+      }
+      return;
+    }
+    const labels = {
+      AVRT: 'TRAV ortodrómica: conducción anterógrada casi normal, P retrógrado visible después del QRS, 1:1.',
+      PJRT: 'Septal de RP largo (tipo PJRT): vía accesoria posteroseptal decremental, RP > PR, incesante.',
+      IRP: 'Septal de RP intermedio: VA entre el corto (TRNAV/TRAV típica) y el largo (PJRT).',
+      JET: 'Ectópica de la unión: foco automático juncional, QRS angosto, disociación A-V con la aurícula siguiendo su propio ritmo sinusal.',
+      AT: 'Auricular: foco ectópico auricular con conducción AV normal decremental.',
+      AFL: 'Flutter auricular: actividad auricular rápida y regular con conducción 2:1 al ventrículo.',
+      VT: 'Ventricular (QRS ancho): disociación A-V, la aurícula sigue su propio ritmo sinusal, más lento e independiente.',
+    };
+    box.textContent = labels[MODEL_TACHY_TYPE] || '';
+    return;
+  }
+  const extras = beats.filter(b=>b.isExtra);
+  if (extras.length===0){ box.textContent = 'Modo asincrónico (S1S1): pacing continuo a ciclo fijo, sin extraestímulo.'; return; }
+  const t = extras[extras.length-1];
+  let html = `<strong>${t.label}</strong> — acoplamiento ${Math.round(t.CI)} ms. `;
+  if (t.blocked==='local') html += 'No captura local (estímulo dentro del período refractario miocárdico).';
+  else if (t.blocked==='AV') html += `Bloqueo AV nodal — se alcanzó el PRE anterógrado (≈${CTX.ERP} ms).`;
+  else if (t.blocked==='VA') html += `Bloqueo V-A retrógrado — se alcanzó el PRE retrógrado (≈${CTX.VERP} ms).`;
+  else if (t.origin==='A') html += `Conducido: AH = ${Math.round(t.ah)} ms · HV = ${Math.round(CTX.hv0)} ms.`;
+  else html += `Conducido en retrógrado: VA = ${Math.round(t.va)} ms (VH≈${Math.round(CTX.hv0)} ms + HA≈${Math.round(t.va-CTX.hv0)} ms).`;
+  box.innerHTML = html;
+}
+
+function stepInput(id, delta){
+  const el = document.getElementById(id);
+  let v = (+el.value || 0) + delta;
+  const min = +el.min, max = +el.max;
+  if (!isNaN(min)) v = Math.max(min, v);
+  if (!isNaN(max)) v = Math.min(max, v);
+  el.value = v;
+  onCycleParamChange();
+}
+function applyS1InductionCLChange(){
+  const cl = +document.getElementById('s1InductionCL').value;
+  document.getElementById('wenckAnt').value = cl + 10; // el Wenckebach aparece 10 ms antes de la zona de inducción
+  onCycleParamChange();
+}
+function applyS2InduceField(){
+  const jumpCL = +document.getElementById('jumpCL').value;
+  const field = document.getElementById('s2InduceCL');
+  const clamped = Math.min(+field.value, jumpCL - 10); // siempre por debajo del umbral de salto
+  field.value = Math.max(150, clamped);
+  document.getElementById('s2').value = field.value;
+  onCycleParamChange();
+}
+function onCycleParamChange(){
+  // Con el modelo de barrido por vueltas, un cambio de S1/S2 se aplica solo en la próxima vuelta si
+  // no se fuerza — pero mientras se está reproduciendo (por ejemplo, ajustando la velocidad de
+  // sobreestimulación en vivo), lo aplicamos ya mismo, sin resetear el cursor ni reiniciar el polígrafo.
+  if (SENSING_MODE) SENSED_S2_FRESH = true; // cambiar S2 a propósito SÍ cuenta como una nueva entrega
+  if (SENSING_MODE || !playing){ renderAll(); return; } // Sensado: el S2 es un evento único — siempre
+                                                          // se vuelve a mostrar completo desde el inicio.
+  rebuildLap();
+}
+function getPacingParams(){
+  const mode = activeMode;
+  return {
+    site: document.querySelector('input[name=site]:checked').value,
+    mode: mode,
+    s1cl: +document.getElementById('s1cl').value,
+    n: mode==='SYNC' ? 8 : +document.getElementById('nbeats').value,
+    ci2: +document.getElementById('s2').value,
+    tachyType: MODEL_TACHY_TYPE,
+    tachyCL: +document.getElementById('tachyCL').value,
+  };
+}
+function getPhysio(){
+  return {
+    sinusCL: +document.getElementById('sinusCL').value,
+    AH0: +document.getElementById('ah0').value,
+    hv0: +document.getElementById('hv0').value,
+    ERP: +document.getElementById('erp').value,
+    VA0: +document.getElementById('va0').value,
+    VERP: +document.getElementById('verp').value,
+    wenckAnt: +document.getElementById('wenckAnt').value,
+    wenckRetro: +document.getElementById('wenckRetro').value,
+    jumpEnabled: document.getElementById('jumpEnabled').checked,
+    jumpCL: +document.getElementById('jumpCL').value,
+    jumpRetroEnabled: document.getElementById('jumpRetroEnabled').checked,
+    jumpRetroCL: +document.getElementById('jumpRetroCL').value,
+    s1InductionEnabled: document.getElementById('s1InductionEnabled').checked,
+    s1InductionCL: +document.getElementById('s1InductionCL').value,
+  };
+}
+
+function autoScroll(x){
+  const el = document.getElementById('traceScrollMain');
+  if (!el) return;
+  const margin = 90;
+  if (x > el.scrollLeft + el.clientWidth - margin){
+    el.scrollLeft = Math.min(x - el.clientWidth + margin, Math.max(0, el.scrollWidth - el.clientWidth));
+  } else if (x < el.scrollLeft){
+    el.scrollLeft = Math.max(0, x - margin);
+  }
+}
+function autoScroll12(x){
+  const el = document.getElementById('traceScroll12');
+  if (!el) return;
+  const margin = 90;
+  if (x > el.scrollLeft + el.clientWidth - margin){
+    el.scrollLeft = Math.min(x - el.clientWidth + margin, Math.max(0, el.scrollWidth - el.clientWidth));
+  } else if (x < el.scrollLeft){
+    el.scrollLeft = Math.max(0, x - margin);
+  }
+}
+function updateCursor(ms){
+  const x = ms*CURRENT_PX;
+  const clipRect = document.getElementById('clipRect');
+  const cursorLine = document.getElementById('cursorLine');
+  if (clipRect && cursorLine){
+    clipRect.setAttribute('width', Math.max(0,x));
+    cursorLine.setAttribute('x1', x);
+    cursorLine.setAttribute('x2', x);
+    autoScroll(x);
+  }
+  const clipRect12 = document.getElementById('clipRect12');
+  const cursorLine12 = document.getElementById('cursorLine12');
+  if (clipRect12 && cursorLine12){
+    clipRect12.setAttribute('width', Math.max(0,x));
+    cursorLine12.setAttribute('x1', x);
+    cursorLine12.setAttribute('x2', x);
+    autoScroll12(x);
+  }
+}
+function tick(ts){
+  if (!playing) return;
+  if (lastTs==null) lastTs = ts;
+  let dt = ts - lastTs;
+  lastTs = ts;
+  if (dt > 150) dt = 150; // si el navegador pausó la pestaña, no intentar recuperar todo de golpe
+  const speed = +document.getElementById('speed').value;
+  elapsedMs += dt*speed;
+
+  try {
+    if (elapsedMs >= SWEEP_MS){
+      elapsedMs = elapsedMs % SWEEP_MS;
+      rebuildLap(); // pantalla completa: vuelve al inicio y arranca una vuelta nueva (con los valores actuales)
+    }
+    updateCursor(elapsedMs);
+  } catch (e){
+    console.error('Error en el tick del simulador (se ignora para no congelar el trazado):', e);
+  }
+  rafId = requestAnimationFrame(tick);
+}
+function setPlayBtn(){
+  const btn = document.getElementById('playBtn');
+  if (btn) btn.textContent = playing ? '⏸ Pausar' : '▶ Reproducir';
+}
+function play(){
+  if (playing) return;
+  playing = true; lastTs = null; setPlayBtn();
+  rafId = requestAnimationFrame(tick);
+}
+function pause(){
+  playing = false; setPlayBtn();
+  if (rafId) cancelAnimationFrame(rafId);
+  clearTimeout(loopTimeoutId);
+}
+function playPause(){ playing ? pause() : play(); }
+function restart(){
+  pause();
+  elapsedMs = 0;
+  rebuildLap();
+  updateCursor(0);
+  play();
+}
+
+function renderAll(){
+  pause();
+  elapsedMs = 0;
+  rebuildLap();
+  updateCursor(0);
+  play();
+}
+
+buildLabelsAndLegend();
+buildLabels12();
+updateModeVisibility();
+renderAll();
+document.querySelectorAll('input[name=site]').forEach(el=>el.addEventListener('change', renderAll));
+document.querySelectorAll('#sinusCL,#ah0,#hv0,#erp,#va0,#verp,#wenckAnt,#wenckRetro,#jumpEnabled,#jumpRetroEnabled,#jumpRetroCL,#s1InductionEnabled,#s1InductionCL').forEach(el=>el.addEventListener('change', renderAll));
+document.getElementById('jumpCL').addEventListener('change', () => { applyS2InduceField(); renderAll(); });
+document.querySelectorAll('#s1cl,#s2').forEach(el=>el.addEventListener('change', onCycleParamChange));
+</script>
+</body>
+</html>
