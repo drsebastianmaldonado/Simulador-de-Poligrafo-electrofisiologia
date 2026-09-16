@@ -176,7 +176,7 @@
 
 <div class="panel">
   <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Modo de estimulación</div>
-  <div class="row">
+  <div class="row" style="align-items:flex-start;">
     <div class="field">
       <div class="radiogroup" style="flex-direction:column; flex-wrap:nowrap; align-items:flex-start;">
         <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
@@ -189,19 +189,21 @@
         <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
       </div>
     </div>
-    <div class="field" id="s1clRow">
-      <label>Ciclo S1</label>
-      <div class="stepper-row">
-        <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
-        <div class="stepper-btns">
-          <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
-          <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div class="field" id="s1clRow">
+        <label>Ciclo S1</label>
+        <div class="stepper-row">
+          <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="field" id="nbeatsRow">
-      <label>Nº de S1 (tren)</label>
-      <input type="number" id="nbeats" min="3" max="15" value="8">
+      <div class="field" id="nbeatsRow">
+        <label>Nº de S1 (tren)</label>
+        <input type="number" id="nbeats" min="3" max="15" value="8">
+      </div>
     </div>
     <div class="field" id="s2row" style="display:none;">
       <label>Extraestímulo S2 — 9° latido</label>
