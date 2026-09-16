@@ -20,7 +20,9 @@ export function buildLabelsAndLegend(){
 export function centerOnMonitor(){
   const mainTrace = document.getElementById('traceScrollMain');
   const scope = mainTrace ? mainTrace.closest('.scope') : null;
-  if (scope && scope.scrollIntoView) scope.scrollIntoView({behavior:'smooth', block:'center'});
+  // 'start' (no 'center'): deja el trazado pegado arriba de la pantalla, para que el panel
+  // "Modo de estimulación" (justo debajo) entre completo en el resto de la pantalla visible.
+  if (scope && scope.scrollIntoView) scope.scrollIntoView({behavior:'smooth', block:'start'});
 }
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
