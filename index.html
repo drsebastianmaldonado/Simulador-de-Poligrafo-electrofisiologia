@@ -189,6 +189,10 @@
         <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
       </div>
     </div>
+    <div class="field" style="flex-direction:row; gap:8px;">
+      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
+      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
+    </div>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; flex-direction:row; gap:22px;">
         <div class="field" id="s1clRow">
@@ -236,15 +240,11 @@
           </select>
         </div>
       </div>
-    </div>
-    <div class="field" style="flex-direction:row; gap:8px;">
-      <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
-      <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
-      <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
-    </div>
-    <div class="field" style="flex-direction:row; gap:8px; margin-left:auto;">
-      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
-      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
+      <div class="field" style="flex-direction:row; gap:8px;">
+        <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
+        <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
+        <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
+      </div>
     </div>
   </div>
 </div>
