@@ -178,13 +178,13 @@
   <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Modo de estimulación</div>
   <div class="row">
     <div class="field">
-      <div class="radiogroup">
+      <div class="radiogroup" style="flex-direction:column; flex-wrap:nowrap; align-items:flex-start;">
         <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
         <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
       </div>
     </div>
     <div class="field">
-      <div class="radiogroup">
+      <div class="radiogroup" style="flex-direction:column; flex-wrap:nowrap; align-items:flex-start;">
         <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
         <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
       </div>
