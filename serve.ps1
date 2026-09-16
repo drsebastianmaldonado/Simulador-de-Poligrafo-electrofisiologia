@@ -10,7 +10,7 @@ while ($listener.IsListening) {
     $req = $context.Request
     $res = $context.Response
     $path = $req.Url.LocalPath
-    if ($path -eq "/") { $path = "/simulador_ep_estimulacion_programada.html" }
+    if ($path -eq "/") { $path = "/index.html" }
     $filePath = Join-Path $root ($path.TrimStart("/"))
     if (Test-Path $filePath -PathType Leaf) {
         $ext = [System.IO.Path]::GetExtension($filePath)
