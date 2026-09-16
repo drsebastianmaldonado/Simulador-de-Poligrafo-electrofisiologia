@@ -4,6 +4,7 @@ import { deltaSignForLead, qrsAmplitudeScale, deltaMorphologyForLead } from './p
 import {
   qrsWideState, qrsShapeFeat, buildContinuousPath, buildSawtoothTeeth,
   stimTickOverlay, pWaveFeat, preexcitedQrsFeat, qrsFeatNeg, qrsFeat,
+  hiddenRetrogradePInQRS, terminalNotchFeat, qrsDurationMs,
 } from './trace-render.js';
 import { currentLapBeats } from './playback.js';
 
@@ -40,7 +41,8 @@ function renderLead12Trace(cfg, beats, cy, px, width){
   beats.forEach(b => {
     if (b.blocked==='local') return;
     if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
-    if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface){
+    const hideRetroP = hiddenRetrogradePInQRS(b);
+    if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface && !hideRetroP){
       let pInv = b.origin==='V';
       if (inferior12 && b.origin==='A' && b.isPaced && (state.CTX.site==='CSprox' || state.CTX.site==='CSdist')) pInv = true;
       if (b.abnormalP) pInv = true;
@@ -66,6 +68,9 @@ function renderLead12Trace(cfg, beats, cy, px, width){
       } else {
         const qc = leadQRSConfig(cfg, b.origin, state.CTX.site, b.narrow);
         features.push(qrsShapeFeat(b.tv*px, cy, px, qc.type, b.qrsCoincide ? 'coincide' : qc.wide));
+      }
+      if (inferior12 && hideRetroP){
+        features.push(terminalNotchFeat((b.tv + qrsDurationMs(b))*px, cy, px));
       }
     }
   });

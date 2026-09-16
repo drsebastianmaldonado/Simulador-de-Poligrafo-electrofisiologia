@@ -13,6 +13,26 @@ export function qrsWideState(b){
   if (b.qrsCoincide) return 'coincide';
   return (b.origin==='V' && !b.narrow);
 }
+export function qrsDurationMs(b){
+  if (b.qrsCoincide) return 90;
+  return (b.origin==='V' && !b.narrow) ? 130 : 70;
+}
+export function hiddenRetrogradePInQRS(b){
+  // Estimulación ventricular con conducción V-A nodal: si la onda P retrógrada (ancho ±40 ms
+  // alrededor de b.ta) queda enteramente contenida dentro del QRS estimulado, no se dibuja como P
+  // aparte — en el mundo real queda sepultada dentro del QRS. Se señala con una muesca chica justo
+  // después del QRS en cara inferior, en vez de mostrar una P completa que en realidad no se vería.
+  if (b.origin !== 'V' || b.ta == null || b.tv == null) return false;
+  if (b.hiddenOnSurface || b.echoVisible) return false; // ya manejadas aparte (vía accesoria, etc.)
+  const qrsStart = b.tv, qrsEnd = qrsStart + qrsDurationMs(b);
+  return (b.ta - 40 >= qrsStart) && (b.ta + 40 <= qrsEnd);
+}
+export function terminalNotchFeat(x, cy, px){
+  // Muesca terminal post-QRS: asoma la activación auricular retrógrada que quedó completamente
+  // oculta dentro del QRS — pequeña deflexión negativa justo después del complejo.
+  const halfW = 12*px;
+  return {xStart:x, xEnd:x+2*halfW, cmd:`Q ${x+halfW} ${cy+6} ${x+2*halfW} ${cy}`};
+}
 export function qrsShapeFeat(x, cy, px, type, wide){
   // 'x' es el INICIO del QRS (el intervalo HV llega hasta acá, no hasta el centro del complejo).
   const dur = (wide==='coincide' ? 90 : (wide ? 130 : 70)) * px;
@@ -163,7 +183,8 @@ export function renderChannelTrace(ch, beats, cy, px, width){
     if (b.blocked==='local') return;
     if (ch.kind==='surface'){
       if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
-      if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface){
+      const hideRetroP = hiddenRetrogradePInQRS(b);
+      if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface && !hideRetroP){
         let pInv = b.origin==='V';
         if (ch.key==='D2' && b.origin==='A' && b.isPaced && (CTX.site==='CSprox' || CTX.site==='CSdist')) pInv = true;
         if (b.abnormalP) pInv = true;
@@ -188,6 +209,9 @@ export function renderChannelTrace(ch, beats, cy, px, width){
           features.push(qrsShapeFeat(b.tv*px, cy, px, 'rS', qrsWideState(b)));
         } else {
           features.push(qrsFeat(b.tv*px, cy, qrsWideState(b), px));
+        }
+        if (ch.key==='D2' && hideRetroP){
+          features.push(terminalNotchFeat((b.tv + qrsDurationMs(b))*px, cy, px));
         }
         if (ch.key==='D2'){
           if (prevTv!=null){
