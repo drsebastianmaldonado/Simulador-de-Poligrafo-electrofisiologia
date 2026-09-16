@@ -183,23 +183,12 @@
         <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
       </div>
     </div>
-  </div>
-  <div class="row" style="flex-direction:row; gap:8px;">
-    <div class="field" style="flex-direction:row; gap:8px;">
-      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
-      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
-    </div>
-  </div>
-  <div class="row" style="margin-top:8px;">
     <div class="field">
       <div class="radiogroup">
         <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
         <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
       </div>
     </div>
-  </div>
-
-  <div class="row" style="margin-top:12px;">
     <div class="field" id="s1clRow">
       <label>Ciclo S1</label>
       <div class="stepper-row">
@@ -242,10 +231,14 @@
         <option value="0.75">0.75×</option>
       </select>
     </div>
-    <div class="field" style="justify-content:flex-end; flex-direction:row; gap:8px;">
+    <div class="field" style="flex-direction:row; gap:8px;">
       <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
       <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
       <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
+    </div>
+    <div class="field" style="flex-direction:row; gap:8px; margin-left:auto;">
+      <button type="button" onclick="startStimulation()" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
+      <button type="button" onclick="stopStimulation()" style="background:#e5484d; color:#2a0a0a; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Detener estimulación</button>
     </div>
   </div>
 </div>
