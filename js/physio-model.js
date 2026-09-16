@@ -113,7 +113,10 @@ export function makeVentricularBeat(refTime, CI, isPaced, label, isExtra){
       const vaNode = (vaApex==null) ? null : vaApex + (CTX.site==='VDbasal' ? 40 : 0);
       if (vaNode==null){ beat.blocked='VA'; return beat; }
       beat.va = vaNode;
-      beat.th = refTime + CTX.hv0;
+      // Retroconducción V→H más corta que el HV anterógrado fijo: acerca la deflexión His a la
+      // espiga ventricular en vez de dejarla a mitad de camino hacia la A retrógrada.
+      const retroVH = (CTX.site==='VDapex' || CTX.site==='VDbasal') ? 20 : CTX.hv0;
+      beat.th = refTime + retroVH;
       beat.ta = refTime + vaNode;
       return beat;
     }
@@ -137,7 +140,10 @@ export function makeVentricularBeat(refTime, CI, isPaced, label, isExtra){
   const va = (vaApex==null) ? null : vaApex + (CTX.site==='VDbasal' ? 40 : 0);
   if (va==null){ beat.blocked='VA'; return beat; }
   beat.va = va;
-  beat.th = refTime + CTX.hv0;
+  // Retroconducción V→H más corta que el HV anterógrado fijo: acerca la deflexión His a la
+  // espiga ventricular en vez de dejarla a mitad de camino hacia la A retrógrada.
+  const retroVH = (CTX.site==='VDapex' || CTX.site==='VDbasal') ? 20 : CTX.hv0;
+  beat.th = refTime + retroVH;
   beat.ta = refTime + va;
   return beat;
 }
