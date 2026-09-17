@@ -51,7 +51,10 @@ export function stopStimulation(){
     pause();
     return;
   }
-  if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.AVNRT_INDUCED){
+  if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.AVNRT_INDUCED && !state.OVERDRIVE_TERMINATED){
+    // El !OVERDRIVE_TERMINATED evita que, justo después de cortar una taquicardia por
+    // sobreestimulación (donde se sigue paceando 1:1 al mismo ciclo rápido), "Detener" se
+    // interprete como el disparo de una NUEVA inducción en vez de simplemente dejar de estimular.
     const p = getPacingParams();
     const isAtrialSiteNow = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
     const s1IndEnabled = document.getElementById('s1InductionEnabled').checked;
