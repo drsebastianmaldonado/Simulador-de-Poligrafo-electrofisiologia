@@ -435,11 +435,13 @@ export function buildS1InducedAVNRT(p, upToMs){
   }
   return beats;
 }
-export function buildOverdriveTermination(p, upToMs, TCL, stopAtMs){
+export function buildOverdriveTermination(p, upToMs, TCL, stopAtMs, continuePacing){
   // Sobreestimulación auricular continua durante TRNAV sostenida: corta la taquicardia apenas se
   // estimula ≥20 ms más rápido que la TCL. Entre 20 y 50 ms más rápido: Wenckebach anterógrado 3:2.
-  // Más de 50 ms más rápido: bloqueo AV 2:1. Si se pasa stopAtMs, a partir de ese instante sigue con
-  // ritmo sinusal EN LA MISMA serie continua (sin cortar ni reiniciar el polígrafo).
+  // Más de 50 ms más rápido: bloqueo AV 2:1. Si se pasa stopAtMs, a partir de ese instante la serie
+  // continúa — con ritmo sinusal si se presionó "Detener" (ya no se está paceando), o con captura
+  // auricular 1:1 al ritmo de estimulación si `continuePacing` es true (el corte fue automático,
+  // en pleno "Estimular", y la estimulación en sí sigue activa hasta que se presione "Detener").
   const CTX = state.CTX;
   const beats = [];
   const fasterBy = TCL - p.s1cl;
@@ -474,10 +476,21 @@ export function buildOverdriveTermination(p, upToMs, TCL, stopAtMs){
     tv += p.s1cl; i++;
   }
   if (stopAtMs != null){
-    // Corte manual en un instante puntual (se presionó "Detener"): sigue con ritmo sinusal a partir
-    // de ahí, en la misma serie continua (sin reiniciar el polígrafo).
     let ts = stopAtMs;
-    while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+    if (continuePacing){
+      // El corte fue automático mientras se seguía estimulando (no se presionó "Detener"): la
+      // aurícula queda capturada 1:1 al ritmo de estimulación — no vuelve sola a ritmo sinusal.
+      while (ts < upToMs){
+        const beat = makeAtrialBeat(ts, p.s1cl, true, 'S1');
+        delete beat.echoTa; // captura 1:1 ya establecida: sin eco retrógrado
+        beats.push(beat);
+        ts += p.s1cl;
+      }
+    } else {
+      // Corte manual en un instante puntual (se presionó "Detener"): sigue con ritmo sinusal a
+      // partir de ahí, en la misma serie continua (sin reiniciar el polígrafo).
+      while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
+    }
   }
   // Sin corte manual: la sobreestimulación (Wenckebach 3:2 o 2:1) sigue en forma continua mientras
   // se la siga pacenado — no se autolimita a un número de latidos ni corta sola ni marca
@@ -559,13 +572,14 @@ export function resolveSustainedTachyBeats(p){
   // comprometido al presionar "Estimular" (APPLIED_S1CL) — no el valor que esté escrito ahora
   // mismo en el campo Ciclo S1, que puede haberse tocado sin volver a apretar el botón — y si
   // alcanza para cortarla, el corte se aplica ya (Wenckebach/2:1 y unos pocos latidos después
-  // pasa a sinusal), sin esperar a que se presione "Detener estimulación".
+  // pasa a captura auricular 1:1 (sigue estimulando: no vuelve solo a sinusal), sin esperar a que
+  // se presione "Detener estimulación".
   if (state.INDUCED_TYPE==='AVNRT' && state.APPLIED_S1CL <= state.AVNRT_TCL - 20){
     const pApplied = {...p, s1cl: state.APPLIED_S1CL};
     const cutAt = state.APPLIED_S1CL * 3; // deja ver un ciclo completo de Wenckebach/2:1 antes de cortar
     state.AVNRT_INDUCED = false;
     state.OVERDRIVE_TERMINATED = true;
-    return buildOverdriveTermination(pApplied, state.SWEEP_MS + 500, state.AVNRT_TCL, cutAt);
+    return buildOverdriveTermination(pApplied, state.SWEEP_MS + 500, state.AVNRT_TCL, cutAt, true);
   }
   if (state.INDUCED_TYPE==='AVRT' && state.APPLIED_S1CL < state.AVNRT_TCL - 30){
     const pApplied = {...p, s1cl: state.APPLIED_S1CL};
