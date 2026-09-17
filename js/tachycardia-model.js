@@ -699,12 +699,11 @@ export function buildInductionAtInstant(p, upToMs, stopAtMs){
   state.AVNRT_INDUCED = true;
   state.AVNRT_TCL = sustainedCL;
   state.INDUCED_TYPE = state.INDUCE_TARGET;
-  state.APPLIED_S1CL = sustainedCL; // recién inducida: todavía no se está sobreestimulando
-  // Se dejó de estimular (se indujo al detener) — el campo de ciclo de estimulación ya no refleja
-  // un pacing activo. Si quedara en un valor más rápido que el propio ciclo de la taquicardia,
-  // el próximo redibujado lo interpretaría como sobreestimulación en curso y mostraría Wenckebach
-  // con AH en vez de la V-A simultánea real. Se lo lleva al ciclo sostenido para evitar eso.
-  document.getElementById('s1cl').value = sustainedCL;
+  // Recién inducida: todavía no se está sobreestimulando. Ya no hace falta forzar el campo Ciclo
+  // S1 al valor sostenido (como antes) — el chequeo de sobreestimulación compara contra
+  // APPLIED_S1CL, que solo se actualiza al presionar "Estimular", así que un valor rápido que haya
+  // quedado en el campo (el mismo que se usó para inducir) no se interpreta como pacing en curso.
+  state.APPLIED_S1CL = sustainedCL;
   if (state.INDUCE_TARGET === 'AVRT'){
     const locKey = document.getElementById('pathwayLoc').value;
     const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;

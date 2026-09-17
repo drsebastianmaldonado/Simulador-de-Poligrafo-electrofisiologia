@@ -19,6 +19,7 @@ export function buildLabelsAndLegend(){
 
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
+  const wasAlreadyRunning = state.STIMULATING && state.playing;
   if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE && !state.AVNRT_INDUCED){
     // Arranca limpio (vuelve a mostrar el tren completo antes de inducir) solo si no hay ya una
     // taquicardia sostenida — si la hay, "Estimular" la pacea con el ciclo actual (p.ej. para
@@ -30,7 +31,13 @@ export function startStimulation(){
   // botón — tocar el campo sin apretar "Estimular" no debe arrancar una sobreestimulación por su cuenta.
   state.APPLIED_S1CL = getPacingParams().s1cl;
   state.STIMULATING = true;
-  renderAll();
+  if (wasAlreadyRunning){
+    // Ya se estaba estimulando y animando (p.ej. una taquicardia sostenida en curso): "Estimular"
+    // solo aplica el nuevo ciclo comprometido, sin reiniciar el polígrafo ni el cursor.
+    rebuildLap();
+  } else {
+    renderAll();
+  }
 }
 export function stopStimulation(){
   // Termina la estimulación en curso y vuelve al ritmo sinusal basal.
