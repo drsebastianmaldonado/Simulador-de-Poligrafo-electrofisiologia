@@ -36,24 +36,33 @@ export function currentLapBeats(){
   if (p.mode==='MODELS') return buildTachyBeats(p.tachyType, p.tachyCL, state.SWEEP_MS + 500);
   return buildAsyncLapBeats(p);
 }
+// Duración mínima de cada vuelta del barrido "en bucle" (ritmo sinusal, pacing continuo, taquicardia
+// sostenida). Antes cada vuelta duraba exactamente una pantalla (~1.5-2 s a 50 mm/s) y se reiniciaba
+// todo el tiempo, sin dejar margen para repasar hacia atrás. Con este mínimo, el barrido se comporta
+// como un registro continuo real: dura bastante más que una pantalla, así que el contenedor del
+// trazado queda con scroll horizontal (barra inferior) y hay margen de sobra para "10 s atrás".
+const CONTINUOUS_MIN_MS = 20000;
+
 export function rebuildLap(){
   const p = getPacingParams();
   state.CTX = Object.assign(getPhysio(), {s1cl: p.s1cl, site: p.site});
   const containerW = getContainerWidth();
   state.CURRENT_PX = mmsToPxPerMs(+document.getElementById('zoom').value);
+  const screenMs = containerW / state.CURRENT_PX;
+  const loopMs = Math.max(screenMs, CONTINUOUS_MIN_MS);
   let beats;
   if (!state.STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')){
-    // Sin estimulación activada: solo ritmo sinusal basal, a pantalla completa.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Sin estimulación activada: solo ritmo sinusal basal.
+    state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);
   } else if (state.OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')){
-    // Se cortó por sobreestimulación: sinusal estable, en pantalla completa.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Se cortó por sobreestimulación: sinusal estable.
+    state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);
   } else if (p.mode==='SYNC' && state.AVNRT_INDUCED && !state.SENSING_MODE){
-    // Ya inducida: sigue sostenida en bucle continuo a pantalla completa, salvo que se esté
-    // sobreestimulando lo suficientemente rápido, en cuyo caso corta (igual que en asincrónico).
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Ya inducida: sigue sostenida en bucle continuo, salvo que se esté sobreestimulando lo
+    // suficientemente rápido, en cuyo caso corta (igual que en asincrónico).
+    state.SWEEP_MS = loopMs;
     if (state.INDUCED_TYPE==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) beats = buildOverdriveTermination(p, state.SWEEP_MS + 500, state.AVNRT_TCL);
     else if (state.INDUCED_TYPE==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) beats = buildAVRTOverdriveCapture(p, state.SWEEP_MS + 500);
     else beats = buildTachyBeats(state.INDUCED_TYPE, state.AVNRT_TCL, state.SWEEP_MS + 500);
@@ -66,19 +75,19 @@ export function rebuildLap(){
   } else if (p.mode==='MODELS' && !state.STIMULATING){
     // Cualquier modelo: arranca en ritmo sinusal basal hasta que se apriete "Estimular",
     // sin importar cuál esté seleccionado.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);
   } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && state.ACTIVE_MANIOBRA==='entrainment'){
-    // Entrainment desde VD: la vuelta dura una pantalla completa, como en asincrónico.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Entrainment desde VD: la vuelta dura el bucle continuo, como en asincrónico.
+    state.SWEEP_MS = loopMs;
     beats = buildEntrainmentBeats(p, state.SWEEP_MS + 500).beats;
   } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && state.ACTIVE_MANIOBRA==='hisRefr'){
-    // Extraestímulo con His refractario: pantalla completa.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Extraestímulo con His refractario.
+    state.SWEEP_MS = loopMs;
     beats = buildHisRefractoryExtrastim(p, state.SWEEP_MS + 500).beats;
   } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT') && state.AVNRT_INDUCED){
     // Ya inducida: queda permanente, en bucle continuo, hasta que se realice una maniobra.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    state.SWEEP_MS = loopMs;
     beats = buildTachyBeats(state.INDUCED_TYPE, p.tachyCL, state.SWEEP_MS + 500);
   } else if (p.mode==='MODELS' && (p.tachyType==='AVNRT'||p.tachyType==='AVRT')){
     // TRNAV o TRAV: arranca en ritmo sinusal basal, con el protocolo S1S1+S2 (salto de vía) que
@@ -87,17 +96,16 @@ export function rebuildLap(){
     beats = ind.beats;
     state.SWEEP_MS = ind.totalMs;
   } else if (p.mode==='MODELS'){
-    // Ritmo sostenido: la vuelta dura una pantalla completa a la escala elegida, igual que en asincrónico.
-    state.SWEEP_MS = containerW / state.CURRENT_PX;
+    // Ritmo sostenido: bucle continuo a la escala elegida, igual que en asincrónico.
+    state.SWEEP_MS = loopMs;
     beats = buildTachyBeats(p.tachyType, p.tachyCL, state.SWEEP_MS + 500);
   } else {
-    // Pacing continuo: la vuelta dura una pantalla completa a la escala elegida — salvo que haya
-    // una inducción S1S1 en curso, en cuyo caso se garantiza espacio para completar el tren de 8
-    // latidos y ver el inicio de la taquicardia sostenida (permitiendo scroll si no entra en una pantalla).
-    const screenMs = containerW / state.CURRENT_PX;
+    // Pacing continuo: bucle continuo a la escala elegida — salvo que haya una inducción S1S1 en
+    // curso, en cuyo caso se garantiza espacio para completar el tren de 8 latidos y ver el inicio
+    // de la taquicardia sostenida.
     const isAtrialSiteNow = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
     const inducing = isAtrialSiteNow && !state.AVNRT_INDUCED && state.CTX.s1InductionEnabled && p.s1cl <= state.CTX.s1InductionCL && p.s1cl >= state.CTX.s1InductionCL - 30;
-    state.SWEEP_MS = inducing ? Math.max(screenMs, p.s1cl*8 + p.tachyCL*3) : screenMs;
+    state.SWEEP_MS = inducing ? Math.max(loopMs, p.s1cl*8 + p.tachyCL*3) : loopMs;
     beats = buildAsyncLapBeats(p);
   }
   document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
