@@ -3,7 +3,7 @@
 // solo) y dispara el arranque inicial del simulador.
 import { buildLabels12, toggleEcg12 } from './ecg12-render.js';
 import { buildLabelsAndLegend, updateModeVisibility, startStimulation, stopStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput } from './ui-controls.js';
-import { renderAll, playPause, restart } from './playback.js';
+import { renderAll, playPause, restart, rewind10s } from './playback.js';
 
 Object.assign(window, {
   stepInput,
@@ -19,6 +19,7 @@ Object.assign(window, {
   onModeRadioChange,
   playPause,
   restart,
+  rewind10s,
   toggleEcg12,
 });
 

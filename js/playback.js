@@ -148,6 +148,13 @@ export function updateCursor(ms){
     autoScroll12(x);
   }
 }
+export function rewind10s(){
+  // Retrocede el cursor del barrido 10 s dentro de la misma vuelta ya dibujada (sin recalcular el
+  // trazado ni tocar el estado de estimulación) — pensado para usarse en pausa y después, si se
+  // quiere, volver a darle Play para repasar cómo se dibujó ese tramo.
+  state.elapsedMs = Math.max(0, state.elapsedMs - 10000);
+  updateCursor(state.elapsedMs);
+}
 function tick(ts){
   if (!state.playing) return;
   if (state.lastTs==null) state.lastTs = ts;
