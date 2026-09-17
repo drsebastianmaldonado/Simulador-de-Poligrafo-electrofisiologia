@@ -13,8 +13,28 @@ import { renderAll, pause, rebuildLap } from './playback.js';
 export function buildLabelsAndLegend(){
   const labelsCol = document.getElementById('labelsCol');
   labelsCol.innerHTML = '<div class="ruler-spacer"></div>' + CHANNELS.map(ch =>
-    `<div class="chan-label"><span class="swatch" style="background:${ch.color}"></span>${ch.label}</div>`
+    `<div class="chan-label" data-key="${ch.key}" title="Click derecho: usar como sitio de estimulación"><span class="swatch" style="background:${ch.color}"></span>${ch.label}</div>`
   ).join('');
+}
+
+// Qué canal de la columna de etiquetas corresponde a cada sitio de estimulación real — los
+// bipolos intermedios del CS (CS 3-4, 5-6, 7-8) son solo de registro, no hay radio para ellos, y VD
+// no distingue ápex/basal por catéter, así que el click derecho ahí elige VD apical por defecto.
+const CHANNEL_TO_SITE = {
+  HRA: 'HRA',
+  CS910: 'CSprox',
+  CS12: 'CSdist',
+  AblD: 'AblD',
+  VD: 'VDapex',
+};
+export function selectSiteFromChannel(channelKey){
+  const site = CHANNEL_TO_SITE[channelKey];
+  if (!site) return false;
+  const radio = document.querySelector(`input[name=site][value="${site}"]`);
+  if (!radio) return false;
+  radio.checked = true;
+  radio.dispatchEvent(new Event('change'));
+  return true;
 }
 
 function setStimBtn(){

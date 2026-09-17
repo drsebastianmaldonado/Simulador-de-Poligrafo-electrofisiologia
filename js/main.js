@@ -2,7 +2,7 @@
 // necesitan las funciones colgadas de `window`, ya que un módulo no las expone globalmente por sí
 // solo) y dispara el arranque inicial del simulador.
 import { buildLabels12, toggleEcg12 } from './ecg12-render.js';
-import { buildLabelsAndLegend, updateModeVisibility, toggleStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput } from './ui-controls.js';
+import { buildLabelsAndLegend, updateModeVisibility, toggleStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput, selectSiteFromChannel } from './ui-controls.js';
 import { renderAll, playPause, restart, rewind10s } from './playback.js';
 
 Object.assign(window, {
@@ -30,3 +30,8 @@ document.querySelectorAll('input[name=site]').forEach(el=>el.addEventListener('c
 document.querySelectorAll('#sinusCL,#ah0,#hv0,#erp,#va0,#verp,#wenckAnt,#wenckRetro,#jumpEnabled,#jumpRetroEnabled,#jumpRetroCL,#s1InductionEnabled,#s1InductionCL').forEach(el=>el.addEventListener('change', renderAll));
 document.getElementById('jumpCL').addEventListener('change', () => { applyS2InduceField(); renderAll(); });
 document.querySelectorAll('#s1cl,#s2').forEach(el=>el.addEventListener('change', onCycleParamChange));
+document.getElementById('labelsCol').addEventListener('contextmenu', (e) => {
+  const label = e.target.closest('.chan-label');
+  if (!label) return;
+  if (selectSiteFromChannel(label.dataset.key)) e.preventDefault();
+});
