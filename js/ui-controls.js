@@ -17,6 +17,22 @@ export function buildLabelsAndLegend(){
   ).join('');
 }
 
+function setStimBtn(){
+  const btn = document.getElementById('stimBtn');
+  if (!btn) return;
+  if (state.STIMULATING){
+    btn.textContent = 'Detener estimulación';
+    btn.style.background = '#e5484d';
+    btn.style.color = '#2a0a0a';
+  } else {
+    btn.textContent = 'Estimular';
+    btn.style.background = '#3fcf6e';
+    btn.style.color = '#0a2410';
+  }
+}
+export function toggleStimulation(){
+  if (state.STIMULATING) stopStimulation(); else startStimulation();
+}
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
   const wasAlreadyRunning = state.STIMULATING && state.playing;
@@ -217,6 +233,7 @@ export function updateModelButtons(){
 
 export function updateReadout(beats){
   updateModelButtons();
+  setStimBtn();
   const box = document.getElementById('readout');
   const mode = state.activeMode;
   const CTX = state.CTX;

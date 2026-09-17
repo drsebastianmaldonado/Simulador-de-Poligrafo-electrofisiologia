@@ -2,7 +2,7 @@
 // necesitan las funciones colgadas de `window`, ya que un módulo no las expone globalmente por sí
 // solo) y dispara el arranque inicial del simulador.
 import { buildLabels12, toggleEcg12 } from './ecg12-render.js';
-import { buildLabelsAndLegend, updateModeVisibility, startStimulation, stopStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput } from './ui-controls.js';
+import { buildLabelsAndLegend, updateModeVisibility, toggleStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput } from './ui-controls.js';
 import { renderAll, playPause, restart, rewind10s } from './playback.js';
 
 Object.assign(window, {
@@ -14,8 +14,7 @@ Object.assign(window, {
   applyS2InduceField,
   applyS1InductionCLChange,
   onSensingModeChange,
-  startStimulation,
-  stopStimulation,
+  toggleStimulation,
   onModeRadioChange,
   playPause,
   restart,
