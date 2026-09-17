@@ -28,7 +28,7 @@ export function buildLabelsAndLegend(){
     if (ch.kind==='surface' || !CHANNEL_TO_SITE[ch.key]){
       return `<div class="chan-label">${swatch}</div>`;
     }
-    return `<button type="button" class="chan-label chan-label-btn" data-key="${ch.key}" onclick="selectSiteFromChannel('${ch.key}')" title="Usar como sitio de estimulación">${swatch}</button>`;
+    return `<button type="button" class="chan-label chan-label-btn" data-key="${ch.key}" onclick="selectSiteFromChannel('${ch.key}')" title="Usar como sitio de estimulación">${swatch}<span class="site-dot"></span></button>`;
   }).join('');
   updateChannelSiteHighlight();
 }

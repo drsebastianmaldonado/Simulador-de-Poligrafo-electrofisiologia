@@ -79,10 +79,22 @@
   button.chan-label-btn{
     width:100%; text-align:left; background:none; border:none; border-left:3px solid transparent;
     color:var(--text); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-weight:400;
-    font-size:.7rem; padding-left:8px;
+    font-size:.7rem; padding-left:8px; padding-right:8px;
+    transition:background-color .15s ease, border-left-color .15s ease, color .15s ease;
   }
-  button.chan-label-btn:hover{ background:var(--panel2); }
-  button.chan-label-btn.chan-label-btn-active{ background:rgba(255,176,32,.12); border-left-color:var(--accent); }
+  button.chan-label-btn:hover{ background:var(--panel2); color:#f0f3f4; }
+  button.chan-label-btn:active{ filter:brightness(1.25); }
+  button.chan-label-btn .site-dot{
+    width:6px; height:6px; border-radius:50%; flex:0 0 auto; margin-left:auto;
+    background:transparent; border:1px solid var(--dim); transition:background-color .15s ease, box-shadow .15s ease;
+  }
+  button.chan-label-btn.chan-label-btn-active{
+    background:linear-gradient(90deg, rgba(255,176,32,.16), rgba(255,176,32,.02) 85%);
+    border-left-color:var(--accent); color:#ffd98f; font-weight:600;
+  }
+  button.chan-label-btn.chan-label-btn-active .site-dot{
+    background:var(--accent); border-color:var(--accent); box-shadow:0 0 5px 1px rgba(255,176,32,.55);
+  }
   .trace-scroll{ flex:1; overflow-x:auto; overflow-y:hidden; }
   .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:.72rem; color:var(--dim); margin-top:10px;}
   .legend span{ display:inline-flex; align-items:center; gap:5px;}
