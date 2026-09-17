@@ -176,65 +176,66 @@
 
 <div class="panel">
   <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Modo de estimulación</div>
-  <div class="row" style="align-items:flex-start;">
-    <div class="field">
-      <div class="radiogroup" style="flex-direction:column; flex-wrap:nowrap; align-items:flex-start;">
-        <label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label>
-        <label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label>
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div class="row" style="align-items:flex-end;">
+      <div class="field">
+        <div class="radiogroup"><label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label></div>
       </div>
-    </div>
-    <div class="field">
-      <div class="radiogroup" style="flex-direction:column; flex-wrap:nowrap; align-items:flex-start;">
-        <label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label>
-        <label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label>
+      <div class="field">
+        <div class="radiogroup"><label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label></div>
       </div>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <div style="display:flex; flex-direction:row; gap:22px;">
-        <div class="field" id="s1clRow">
-          <label>Ciclo S1</label>
-          <div class="stepper-row">
-            <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
-            <div class="stepper-btns">
-              <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
-              <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
-            </div>
-          </div>
-        </div>
-        <div class="field" id="s2row" style="display:none;">
-          <label>Extraestímulo S2 — 9° latido</label>
-          <div class="stepper-row">
-            <input type="number" id="s2" min="150" max="700" step="10" value="400">
-            <div class="stepper-btns">
-              <button type="button" class="stepbtn" onclick="stepInput('s2',10)">▲</button>
-              <button type="button" class="stepbtn" onclick="stepInput('s2',-10)">▼</button>
-            </div>
+      <div class="field" id="s1clRow">
+        <label>Ciclo S1</label>
+        <div class="stepper-row">
+          <input type="number" id="s1cl" min="200" max="800" step="10" value="600">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('s1cl',10)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('s1cl',-10)">▼</button>
           </div>
         </div>
       </div>
-      <div style="display:flex; flex-direction:row; gap:22px;">
-        <div class="field" id="nbeatsRow">
-          <label>Nº de S1 (tren)</label>
-          <input type="number" id="nbeats" min="3" max="15" value="8">
+      <div class="field" id="s2row" style="display:none;">
+        <label>Extraestímulo S2 — 9° latido</label>
+        <div class="stepper-row">
+          <input type="number" id="s2" min="150" max="700" step="10" value="400">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('s2',10)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('s2',-10)">▼</button>
+          </div>
         </div>
-        <div class="field">
-          <label>Velocidad del trazado</label>
-          <select id="zoom" onchange="renderAll()">
-            <option value="25">25 mm/s</option>
-            <option value="50" selected>50 mm/s</option>
-            <option value="100">100 mm/s</option>
-            <option value="150">150 mm/s</option>
-            <option value="200">200 mm/s</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Velocidad de reproducción</label>
-          <select id="speed" onchange="">
-            <option value="0.25">0.25×</option>
-            <option value="0.5" selected>0.5×</option>
-            <option value="0.75">0.75×</option>
-          </select>
-        </div>
+      </div>
+      <div class="field" style="flex-direction:row; gap:8px; margin-left:auto;">
+        <button type="button" onclick="toggleStimulation()" id="stimBtn" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
+      </div>
+    </div>
+    <div class="row" style="align-items:flex-end;">
+      <div class="field">
+        <div class="radiogroup"><label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label></div>
+      </div>
+      <div class="field">
+        <div class="radiogroup"><label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label></div>
+      </div>
+      <div class="field" id="nbeatsRow">
+        <label>Nº de S1 (tren)</label>
+        <input type="number" id="nbeats" min="3" max="15" value="8">
+      </div>
+      <div class="field">
+        <label>Velocidad del trazado</label>
+        <select id="zoom" onchange="renderAll()">
+          <option value="25">25 mm/s</option>
+          <option value="50" selected>50 mm/s</option>
+          <option value="100">100 mm/s</option>
+          <option value="150">150 mm/s</option>
+          <option value="200">200 mm/s</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Velocidad de reproducción</label>
+        <select id="speed" onchange="">
+          <option value="0.25">0.25×</option>
+          <option value="0.5" selected>0.5×</option>
+          <option value="0.75">0.75×</option>
+        </select>
       </div>
       <div class="field" style="flex-direction:row; gap:8px;">
         <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
@@ -242,9 +243,6 @@
         <button class="ghost" onclick="rewind10s()">⏪ 10 s atrás</button>
         <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
       </div>
-    </div>
-    <div class="field" style="flex-direction:row; gap:8px;">
-      <button type="button" onclick="toggleStimulation()" id="stimBtn" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
     </div>
   </div>
 </div>
