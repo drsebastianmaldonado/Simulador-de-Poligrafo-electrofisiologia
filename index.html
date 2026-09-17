@@ -204,6 +204,28 @@
           </div>
         </div>
       </div>
+      <div class="field" id="nbeatsRow">
+        <label>Nº de S1 (tren)</label>
+        <input type="number" id="nbeats" min="3" max="15" value="8">
+      </div>
+      <div class="field">
+        <label>Vel. trazado</label>
+        <select id="zoom" onchange="renderAll()">
+          <option value="25">25 mm/s</option>
+          <option value="50" selected>50 mm/s</option>
+          <option value="100">100 mm/s</option>
+          <option value="150">150 mm/s</option>
+          <option value="200">200 mm/s</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Vel. reproduc.</label>
+        <select id="speed" onchange="">
+          <option value="0.25">0.25×</option>
+          <option value="0.5" selected>0.5×</option>
+          <option value="0.75">0.75×</option>
+        </select>
+      </div>
       <div class="field" style="flex-direction:row; gap:8px; margin-left:auto;">
         <button type="button" onclick="toggleStimulation()" id="stimBtn" style="background:#3fcf6e; color:#0a2410; border:none; border-radius:7px; font-weight:600; font-size:.8rem; padding:9px 16px; cursor:pointer;">Estimular</button>
       </div>
@@ -214,28 +236,6 @@
       </div>
       <div class="field">
         <div class="radiogroup"><label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label></div>
-      </div>
-      <div class="field" id="nbeatsRow">
-        <label>Nº de S1 (tren)</label>
-        <input type="number" id="nbeats" min="3" max="15" value="8">
-      </div>
-      <div class="field">
-        <label>Velocidad del trazado</label>
-        <select id="zoom" onchange="renderAll()">
-          <option value="25">25 mm/s</option>
-          <option value="50" selected>50 mm/s</option>
-          <option value="100">100 mm/s</option>
-          <option value="150">150 mm/s</option>
-          <option value="200">200 mm/s</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Velocidad de reproducción</label>
-        <select id="speed" onchange="">
-          <option value="0.25">0.25×</option>
-          <option value="0.5" selected>0.5×</option>
-          <option value="0.75">0.75×</option>
-        </select>
       </div>
       <div class="field" style="flex-direction:row; gap:8px;">
         <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
