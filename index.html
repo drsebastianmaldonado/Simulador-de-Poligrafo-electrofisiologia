@@ -175,15 +175,19 @@
 </div>
 
 <div class="panel">
-  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-bottom:8px;">Modo de estimulación</div>
-  <div style="display:flex; flex-direction:column; gap:10px;">
-    <div class="row" style="align-items:flex-end;">
-      <div class="field">
+  <div style="display:flex; flex-direction:row; gap:14px; align-items:stretch;">
+    <div style="border:1px solid var(--line); border-radius:8px; padding:8px 12px; display:flex; flex-direction:row; gap:16px;">
+      <div style="display:flex; flex-direction:column; gap:8px; justify-content:space-between;">
         <div class="radiogroup"><label><input type="radio" name="sensingMode" value="paced" checked onchange="onSensingModeChange()"> Estimulación</label></div>
+        <div class="radiogroup"><label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label></div>
       </div>
-      <div class="field">
-        <div class="radiogroup"><label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica (S1S1)</label></div>
+      <div style="display:flex; flex-direction:column; gap:8px; justify-content:space-between;">
+        <div class="radiogroup"><label><input type="radio" name="mode" value="ASYNC" checked onchange="onModeRadioChange()"> Asincrónica</label></div>
+        <div class="radiogroup"><label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica</label></div>
       </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
+    <div class="row" style="align-items:flex-end;">
       <div class="field" id="s1clRow">
         <label>Ciclo S1</label>
         <div class="stepper-row">
@@ -231,12 +235,6 @@
       </div>
     </div>
     <div class="row" style="align-items:flex-end;">
-      <div class="field">
-        <div class="radiogroup"><label><input type="radio" name="sensingMode" value="sensed" onchange="onSensingModeChange()"> Sensado</label></div>
-      </div>
-      <div class="field">
-        <div class="radiogroup"><label><input type="radio" name="mode" value="SYNC" onchange="onModeRadioChange()"> Sincrónica (tren + extraestímulo)</label></div>
-      </div>
       <div class="field" style="flex-direction:row; gap:8px;">
         <button class="ghost" onclick="playPause()" id="playBtn">⏸ Pausar</button>
         <button class="ghost" onclick="restart()">⟲ Reiniciar</button>
@@ -244,7 +242,9 @@
         <button class="ghost" onclick="toggleEcg12()" id="ecg12Btn">ECG 12 derivaciones</button>
       </div>
     </div>
+    </div>
   </div>
+  <div style="font-size:.85rem; font-weight:600; color:#f0f3f4; margin-top:10px;">Modo de estimulación</div>
 </div>
 
 <script type="module" src="js/main.js"></script>
