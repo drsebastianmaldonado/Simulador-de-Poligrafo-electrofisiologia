@@ -55,8 +55,10 @@ export function qrsShapeFeat(x, cy, px, type, wide){
   }
 }
 export function stimMark(x, cy, label){
-  return `<g><line x1="${x}" y1="${cy-20}" x2="${x}" y2="${cy-4}" stroke="#ffd166" stroke-width="2"/>`+
-         `<circle cx="${x}" cy="${cy-20}" r="2.2" fill="#ffd166"/></g>`;
+  // Artefacto de estimulación como pulso cuadrado (sube, se mantiene arriba, baja) en vez de una
+  // espiga fina — más parecido a como se ve el pulso real del estimulador en el canal del sitio pausado.
+  const halfW = 3.5;
+  return `<path d="M ${x-halfW} ${cy-4} L ${x-halfW} ${cy-20} L ${x+halfW} ${cy-20} L ${x+halfW} ${cy-4}" fill="none" stroke="#ffd166" stroke-width="2"/>`;
 }
 export function stimTickOverlay(x, cy){
   // Palito recto delante de la P/QRS captada, como overlay aparte — no altera el trazo continuo.

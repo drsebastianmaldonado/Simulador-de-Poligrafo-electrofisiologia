@@ -33,6 +33,10 @@ export const state = {
   INDUCE_TARGET: 'AVNRT',
   INDUCED_TYPE: 'AVNRT',
   OVERDRIVE_TERMINATED: false,
+  // Ciclo S1 realmente comprometido contra la taquicardia sostenida — se fija al presionar
+  // "Estimular", no al editar el campo Ciclo S1 en vivo. Así, tocar el campo sin volver a apretar
+  // el botón no arranca por su cuenta una sobreestimulación sobre la taquicardia ya inducida.
+  APPLIED_S1CL: 300,
 
   // Preexcitación manifiesta (WPW) en ritmo sinusal.
   PREEXCITATION_ENABLED: false,

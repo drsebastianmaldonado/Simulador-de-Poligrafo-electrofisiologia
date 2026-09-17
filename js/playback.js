@@ -4,7 +4,7 @@ import { getPacingParams, getPhysio } from './params.js';
 import { buildSinusOnlyBeats } from './physio-model.js';
 import {
   buildOneSyncCycle, buildAsyncLapBeats, buildTachyBeats, buildAVNRTInduction,
-  buildOverdriveTermination, buildAVRTOverdriveCapture,
+  resolveSustainedTachyBeats,
 } from './tachycardia-model.js';
 import { buildEntrainmentBeats, buildHisRefractoryExtrastim } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
@@ -23,9 +23,7 @@ export function currentLapBeats(){
   if (!state.STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   if (state.OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   if (p.mode==='SYNC' && state.AVNRT_INDUCED && !state.SENSING_MODE){
-    if (state.INDUCED_TYPE==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) return buildOverdriveTermination(p, state.SWEEP_MS + 500, state.AVNRT_TCL);
-    if (state.INDUCED_TYPE==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) return buildAVRTOverdriveCapture(p, state.SWEEP_MS + 500);
-    return buildTachyBeats(state.INDUCED_TYPE, state.AVNRT_TCL, state.SWEEP_MS + 500);
+    return resolveSustainedTachyBeats(p);
   }
   if (p.mode==='SYNC') return buildOneSyncCycle(0, p).beats;
   if (p.mode==='MODELS' && !state.STIMULATING) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
@@ -60,12 +58,10 @@ export function rebuildLap(){
     state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);
   } else if (p.mode==='SYNC' && state.AVNRT_INDUCED && !state.SENSING_MODE){
-    // Ya inducida: sigue sostenida en bucle continuo, salvo que se esté sobreestimulando lo
-    // suficientemente rápido, en cuyo caso corta (igual que en asincrónico).
+    // Ya inducida: sigue sostenida en bucle continuo, salvo que el ciclo comprometido al presionar
+    // "Estimular" alcance para cortarla por sobreestimulación (igual que en asincrónico).
     state.SWEEP_MS = loopMs;
-    if (state.INDUCED_TYPE==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) beats = buildOverdriveTermination(p, state.SWEEP_MS + 500, state.AVNRT_TCL);
-    else if (state.INDUCED_TYPE==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) beats = buildAVRTOverdriveCapture(p, state.SWEEP_MS + 500);
-    else beats = buildTachyBeats(state.INDUCED_TYPE, state.AVNRT_TCL, state.SWEEP_MS + 500);
+    beats = resolveSustainedTachyBeats(p);
   } else if (p.mode==='SYNC'){
     // La vuelta dura lo que dura el ciclo completo a la escala elegida — si no entra entero en
     // pantalla, se puede desplazar (scroll) dentro de esa única vuelta; no se recorta ni se auto-ajusta.

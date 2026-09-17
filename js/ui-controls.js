@@ -19,11 +19,16 @@ export function buildLabelsAndLegend(){
 
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
-  if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE){
-    state.AVNRT_INDUCED = false; // arranca limpio: vuelve a mostrar el tren completo antes de inducir
+  if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE && !state.AVNRT_INDUCED){
+    // Arranca limpio (vuelve a mostrar el tren completo antes de inducir) solo si no hay ya una
+    // taquicardia sostenida — si la hay, "Estimular" la pacea con el ciclo actual (p.ej. para
+    // intentar sobreestimularla), sin reiniciar la inducción.
     state.OVERDRIVE_TERMINATED = false;
   }
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true;
+  // El ciclo S1 recién queda "comprometido" contra una taquicardia sostenida al presionar este
+  // botón — tocar el campo sin apretar "Estimular" no debe arrancar una sobreestimulación por su cuenta.
+  state.APPLIED_S1CL = getPacingParams().s1cl;
   state.STIMULATING = true;
   renderAll();
 }
@@ -210,14 +215,9 @@ export function updateReadout(beats){
     return;
   }
   if (mode==='ASYNC' && state.AVNRT_INDUCED){
-    const p = getPacingParams();
-    if (p.s1cl <= state.AVNRT_TCL - 20){
-      const fasterBy = state.AVNRT_TCL - p.s1cl;
-      const zone = fasterBy > 50 ? 'Bloqueo AV 2:1' : 'Wenckebach anterógrado 3:2';
-      box.innerHTML = `<strong>${zone}</strong> — sobreestimulando la TRNAV (TCL ${Math.round(state.AVNRT_TCL)} ms) con S1 ${Math.round(p.s1cl)} ms (${Math.round(fasterBy)} ms más rápido). Apretá "Detener estimulación" para revertir a ritmo sinusal.`;
-    } else {
-      box.innerHTML = `<strong>TRNAV inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(state.AVNRT_TCL)} ms). Estimulá desde auricular ≥20 ms más rápido para cortarla (Wenckebach hasta 50 ms, 2:1 más allá).`;
-    }
+    // Muestra el estado según el ciclo REALMENTE comprometido (APPLIED_S1CL) — no el que esté
+    // escrito ahora mismo en el campo si todavía no se volvió a apretar "Estimular".
+    box.innerHTML = `<strong>TRNAV inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(state.AVNRT_TCL)} ms). Programá un Ciclo S1 ≥20 ms más rápido y apretá "Estimular" para intentar cortarla (Wenckebach hasta 50 ms, 2:1 más allá).`;
     return;
   }
   if (mode==='MODELS'){

@@ -158,6 +158,7 @@ export function buildOneSyncCycle(startTime, p){
   const induced = isAtrialSite && CTX.jumpEnabled && p.ci2 <= CTX.jumpCL && s2Beat.ah != null;
   if (induced){
     state.AVNRT_INDUCED = true; state.AVNRT_TCL = p.tachyCL; state.INDUCED_TYPE = state.INDUCE_TARGET;
+    state.APPLIED_S1CL = p.tachyCL; // recién inducida: todavía no se está sobreestimulando
     const sustainedCL = p.tachyCL;
     if (state.INDUCE_TARGET === 'AVRT'){
       const locKey = document.getElementById('pathwayLoc').value;
@@ -325,7 +326,7 @@ export function buildAVNRTInduction(p, extraMs){
   beats.push(s2Beat);
 
   const induced = CTX.jumpEnabled && p.ci2 <= CTX.jumpCL && s2Beat.ah != null;
-  if (induced){ state.AVNRT_INDUCED = true; state.AVNRT_TCL = p.tachyCL; state.INDUCED_TYPE = p.tachyType; }
+  if (induced){ state.AVNRT_INDUCED = true; state.AVNRT_TCL = p.tachyCL; state.INDUCED_TYPE = p.tachyType; state.APPLIED_S1CL = p.tachyCL; }
   let totalMs;
   if (induced && p.tachyType==='AVRT'){
     const locKey = document.getElementById('pathwayLoc').value;
@@ -399,6 +400,7 @@ export function buildS1InducedAVNRT(p, upToMs){
   state.AVNRT_INDUCED = true;
   state.AVNRT_TCL = sustainedCL;
   state.INDUCED_TYPE = state.INDUCE_TARGET;
+  state.APPLIED_S1CL = sustainedCL; // recién inducida: todavía no se está sobreestimulando
   if (state.INDUCE_TARGET === 'AVRT'){
     const locKey = document.getElementById('pathwayLoc').value;
     const pwCfg = PATHWAY_CONFIGS[locKey] || PATHWAY_CONFIGS.leftLateral;
@@ -458,14 +460,14 @@ export function buildOverdriveTermination(p, upToMs, TCL, stopAtMs){
     const pos = i % wenckN;
     let beat;
     if (pos === wenckN-1){
-      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta:tv, blocked:'AV', noAtrialSpread:true};
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta:tv, stimTime:tv, blocked:'AV', noAtrialSpread:true};
     } else if (veryFast){
       const ta = tv - 30 - CTX.hv0;
-      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, ah:30, th:ta+30, tv, noAtrialSpread:true};
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, stimTime:ta, ah:30, th:ta+30, tv, noAtrialSpread:true};
     } else {
       const ah = baselineAH + (target-baselineAH)*((pos+1)/(wenckN-1));
       const ta = tv - ah - CTX.hv0;
-      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, ah, th:ta+ah, tv, noAtrialSpread:true};
+      beat = {origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:p.s1cl, ta, stimTime:ta, ah, th:ta+ah, tv, noAtrialSpread:true};
     }
     delete beat.echoTa; // estos latidos nunca muestran eco: un solo A por cada V
     beats.push(beat);
@@ -552,15 +554,34 @@ export function buildAVRTOverdriveCapture(p, upToMs){
   while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
   return beats;
 }
+export function resolveSustainedTachyBeats(p){
+  // Hay una taquicardia sostenida (AVNRT_INDUCED). Se compara contra el ciclo REALMENTE
+  // comprometido al presionar "Estimular" (APPLIED_S1CL) — no el valor que esté escrito ahora
+  // mismo en el campo Ciclo S1, que puede haberse tocado sin volver a apretar el botón — y si
+  // alcanza para cortarla, el corte se aplica ya (Wenckebach/2:1 y unos pocos latidos después
+  // pasa a sinusal), sin esperar a que se presione "Detener estimulación".
+  if (state.INDUCED_TYPE==='AVNRT' && state.APPLIED_S1CL <= state.AVNRT_TCL - 20){
+    const pApplied = {...p, s1cl: state.APPLIED_S1CL};
+    const cutAt = state.APPLIED_S1CL * 3; // deja ver un ciclo completo de Wenckebach/2:1 antes de cortar
+    state.AVNRT_INDUCED = false;
+    state.OVERDRIVE_TERMINATED = true;
+    return buildOverdriveTermination(pApplied, state.SWEEP_MS + 500, state.AVNRT_TCL, cutAt);
+  }
+  if (state.INDUCED_TYPE==='AVRT' && state.APPLIED_S1CL < state.AVNRT_TCL - 30){
+    const pApplied = {...p, s1cl: state.APPLIED_S1CL};
+    state.AVNRT_INDUCED = false; // buildAVRTOverdriveCapture ya marca OVERDRIVE_TERMINATED por su cuenta
+    return buildAVRTOverdriveCapture(pApplied, state.SWEEP_MS + 500);
+  }
+  // Ya inducida y el ciclo comprometido no alcanza para cortarla: sigue sostenida, sin repetir el
+  // tren cada vuelta.
+  return buildTachyBeats(state.INDUCED_TYPE, state.AVNRT_TCL, state.SWEEP_MS + 500);
+}
 export function buildAsyncLapBeats(p){
   const CTX = state.CTX;
   if (state.OVERDRIVE_TERMINATED) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   const isAtrialSite = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
   if (isAtrialSite && state.AVNRT_INDUCED){
-    if (state.INDUCED_TYPE==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) return buildOverdriveTermination(p, state.SWEEP_MS + 500, state.AVNRT_TCL);
-    if (state.INDUCED_TYPE==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) return buildAVRTOverdriveCapture(p, state.SWEEP_MS + 500);
-    // Ya inducida y no están sobreestimulando: sigue sostenida, sin repetir el tren cada vuelta.
-    return buildTachyBeats(state.INDUCED_TYPE, state.AVNRT_TCL, state.SWEEP_MS + 500);
+    return resolveSustainedTachyBeats(p);
   }
   // Nota: dentro de la ventana de inducción (s1InductionCL-30 a s1InductionCL) ya NO se induce
   // automáticamente mientras se sigue estimulando — captura 1:1 en forma continua, y la inducción
@@ -664,6 +685,7 @@ export function buildInductionAtInstant(p, upToMs, stopAtMs){
   state.AVNRT_INDUCED = true;
   state.AVNRT_TCL = sustainedCL;
   state.INDUCED_TYPE = state.INDUCE_TARGET;
+  state.APPLIED_S1CL = sustainedCL; // recién inducida: todavía no se está sobreestimulando
   // Se dejó de estimular (se indujo al detener) — el campo de ciclo de estimulación ya no refleja
   // un pacing activo. Si quedara en un valor más rápido que el propio ciclo de la taquicardia,
   // el próximo redibujado lo interpretaría como sobreestimulación en curso y mostraría Wenckebach
