@@ -76,6 +76,13 @@
     border-bottom:1px solid #0f1518; font-family:'IBM Plex Mono', monospace; gap:6px;
   }
   .swatch{ width:8px; height:8px; border-radius:2px; flex:0 0 auto; }
+  button.chan-label-btn{
+    width:100%; text-align:left; background:none; border:none; border-left:3px solid transparent;
+    color:var(--text); cursor:pointer; font-family:'IBM Plex Mono', monospace; font-weight:400;
+    font-size:.7rem; padding-left:8px;
+  }
+  button.chan-label-btn:hover{ background:var(--panel2); }
+  button.chan-label-btn.chan-label-btn-active{ background:rgba(255,176,32,.12); border-left-color:var(--accent); }
   .trace-scroll{ flex:1; overflow-x:auto; overflow-y:hidden; }
   .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:.72rem; color:var(--dim); margin-top:10px;}
   .legend span{ display:inline-flex; align-items:center; gap:5px;}

@@ -10,16 +10,10 @@ import { buildSvg } from './trace-render.js';
 import { refreshEcg12 } from './ecg12-render.js';
 import { renderAll, pause, rebuildLap } from './playback.js';
 
-export function buildLabelsAndLegend(){
-  const labelsCol = document.getElementById('labelsCol');
-  labelsCol.innerHTML = '<div class="ruler-spacer"></div>' + CHANNELS.map(ch =>
-    `<div class="chan-label" data-key="${ch.key}" title="Click derecho: usar como sitio de estimulación"><span class="swatch" style="background:${ch.color}"></span>${ch.label}</div>`
-  ).join('');
-}
-
 // Qué canal de la columna de etiquetas corresponde a cada sitio de estimulación real — los
-// bipolos intermedios del CS (CS 3-4, 5-6, 7-8) son solo de registro, no hay radio para ellos, y VD
-// no distingue ápex/basal por catéter, así que el click derecho ahí elige VD apical por defecto.
+// bipolos intermedios del CS (CS 3-4, 5-6, 7-8) y el proximal de ablación son solo de registro,
+// no hay un sitio de estimulación para ellos; y VD no distingue ápex/basal por catéter, así que su
+// botón elige VD apical por defecto.
 const CHANNEL_TO_SITE = {
   HRA: 'HRA',
   CS910: 'CSprox',
@@ -27,6 +21,17 @@ const CHANNEL_TO_SITE = {
   AblD: 'AblD',
   VD: 'VDapex',
 };
+export function buildLabelsAndLegend(){
+  const labelsCol = document.getElementById('labelsCol');
+  labelsCol.innerHTML = '<div class="ruler-spacer"></div>' + CHANNELS.map(ch => {
+    const swatch = `<span class="swatch" style="background:${ch.color}"></span>${ch.label}`;
+    if (ch.kind==='surface' || !CHANNEL_TO_SITE[ch.key]){
+      return `<div class="chan-label">${swatch}</div>`;
+    }
+    return `<button type="button" class="chan-label chan-label-btn" data-key="${ch.key}" onclick="selectSiteFromChannel('${ch.key}')" title="Usar como sitio de estimulación">${swatch}</button>`;
+  }).join('');
+  updateChannelSiteHighlight();
+}
 export function selectSiteFromChannel(channelKey){
   const site = CHANNEL_TO_SITE[channelKey];
   if (!site) return false;
@@ -35,6 +40,13 @@ export function selectSiteFromChannel(channelKey){
   radio.checked = true;
   radio.dispatchEvent(new Event('change'));
   return true;
+}
+export function updateChannelSiteHighlight(){
+  const currentSite = document.querySelector('input[name=site]:checked')?.value;
+  document.querySelectorAll('.chan-label-btn').forEach(btn => {
+    const isActive = CHANNEL_TO_SITE[btn.dataset.key] === currentSite;
+    btn.classList.toggle('chan-label-btn-active', isActive);
+  });
 }
 
 function setStimBtn(){
