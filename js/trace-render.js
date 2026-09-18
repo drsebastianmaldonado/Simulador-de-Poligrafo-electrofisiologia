@@ -188,7 +188,7 @@ export function renderChannelTrace(ch, beats, cy, px, width){
     }
     if (b.blocked==='local') return;
     if (ch.kind==='surface'){
-      if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
+      if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 0 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
       const retroPOverlap = classifyRetrogradePOverlap(b);
       const hideRetroP = retroPOverlap !== 'none';
       if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface && !hideRetroP){

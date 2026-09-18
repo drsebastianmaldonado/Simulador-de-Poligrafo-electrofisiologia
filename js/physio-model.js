@@ -10,11 +10,11 @@ export function computeAH(CI){
     // Decremento progresivo y ya notorio a medida que la FC de estimulación aumenta, antes de llegar al Wenckebach
     const span = Math.max(1, CTX.sinusCL - CTX.wenckAnt);
     const frac = Math.min(1, Math.max(0, (CTX.sinusCL - CI) / span));
-    value = CTX.AH0 + frac*30;
+    value = CTX.AH0 + frac*50;
   } else {
     // Por debajo del punto de Wenckebach, el AH se prolonga en forma marcada a medida que se acerca al PRE
     const dec = k/(CI-CTX.ERP+margin) - k/(CTX.wenckAnt-CTX.ERP+margin);
-    value = Math.max(CTX.AH0+30, (CTX.AH0+30) + dec);
+    value = Math.max(CTX.AH0+50, (CTX.AH0+50) + dec);
   }
   // Salto de vía (doble vía nodal): al llegar al S2 configurado, la vía rápida se bloquea y la
   // conducción pasa a la vía lenta — un salto brusco de AH (>50 ms), no una prolongación gradual.
