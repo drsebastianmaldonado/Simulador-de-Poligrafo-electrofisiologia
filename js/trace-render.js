@@ -17,15 +17,18 @@ export function qrsDurationMs(b){
   if (b.qrsCoincide) return 90;
   return (b.origin==='V' && !b.narrow) ? 130 : 70;
 }
-export function hiddenRetrogradePInQRS(b){
+export function classifyRetrogradePOverlap(b){
   // Estimulación ventricular con conducción V-A nodal: si la onda P retrógrada (ancho ±40 ms
-  // alrededor de b.ta) queda enteramente contenida dentro del QRS estimulado, no se dibuja como P
-  // aparte — en el mundo real queda sepultada dentro del QRS. Se señala con una muesca chica justo
-  // después del QRS en cara inferior, en vez de mostrar una P completa que en realidad no se vería.
-  if (b.origin !== 'V' || b.ta == null || b.tv == null) return false;
-  if (b.hiddenOnSurface || b.echoVisible) return false; // ya manejadas aparte (vía accesoria, etc.)
-  const qrsStart = b.tv, qrsEnd = qrsStart + qrsDurationMs(b);
-  return (b.ta - 40 >= qrsStart) && (b.ta + 40 <= qrsEnd);
+  // alrededor de b.ta) se superpone con el QRS estimulado -aunque sea parcialmente, no sólo si
+  // queda enteramente adentro- en el mundo real no se ve como P aparte, sólo la espiga de
+  // estimulación. Si el solapamiento cae en la mitad final del QRS deja una muesca negativa
+  // terminal (deformidad visible); si cae en la mitad inicial, se pierde sin dejar rastro.
+  if (b.origin !== 'V' || b.ta == null || b.tv == null) return 'none';
+  if (b.hiddenOnSurface || b.echoVisible) return 'none'; // ya manejadas aparte (vía accesoria, etc.)
+  const qrsStart = b.tv, qrsDur = qrsDurationMs(b), qrsEnd = qrsStart + qrsDur;
+  const pStart = b.ta - 40, pEnd = b.ta + 40;
+  if (pEnd <= qrsStart || pStart >= qrsEnd) return 'none'; // sin superposición
+  return (b.ta >= qrsStart + qrsDur/2) ? 'second' : 'first';
 }
 export function terminalNotchFeat(x, cy, px){
   // Muesca terminal post-QRS: asoma la activación auricular retrógrada que quedó completamente
@@ -169,6 +172,7 @@ export function renderChannelTrace(ch, beats, cy, px, width){
   const CTX = state.CTX;
   const features = [];
   let overlays = '';
+  let stimOverlays = ''; // aparte del resto: se agrega al final para quedar siempre por delante del trazo
   let prevTv = null; // para anotar el ciclo (ms) entre QRS consecutivos, sólo en D2
   const isFlutter = ch.kind==='surface' && beats.some(b => b.sawtooth);
   if (isFlutter) buildSawtoothTeeth(beats, px, cy).forEach(f => features.push(f));
@@ -180,12 +184,13 @@ export function renderChannelTrace(ch, beats, cy, px, width){
       else if (CTX.site==='CSdist') stimChannel = 'CS12';
       else if (CTX.site==='AblD') stimChannel = 'AblD';
       else stimChannel = 'VD';
-      if (ch.key===stimChannel) overlays += stimMark(b.stimTime*px, cy, b.label);
+      if (ch.key===stimChannel) stimOverlays += stimMark(b.stimTime*px, cy, b.label);
     }
     if (b.blocked==='local') return;
     if (ch.kind==='surface'){
       if (b.stimTime!=null){ const stimOff = b.origin==='A' ? 40 : 65; overlays += stimTickOverlay((b.stimTime-stimOff)*px, cy); }
-      const hideRetroP = hiddenRetrogradePInQRS(b);
+      const retroPOverlap = classifyRetrogradePOverlap(b);
+      const hideRetroP = retroPOverlap !== 'none';
       if (b.ta!=null && !b.sawtooth && !b.hiddenOnSurface && !hideRetroP){
         let pInv = b.origin==='V';
         if (ch.key==='D2' && b.origin==='A' && b.isPaced && (CTX.site==='CSprox' || CTX.site==='CSdist')) pInv = true;
@@ -212,7 +217,7 @@ export function renderChannelTrace(ch, beats, cy, px, width){
         } else {
           features.push(qrsFeat(b.tv*px, cy, qrsWideState(b), px));
         }
-        if (ch.key==='D2' && hideRetroP){
+        if (ch.key==='D2' && retroPOverlap==='second'){
           features.push(terminalNotchFeat((b.tv + qrsDurationMs(b))*px, cy, px));
         }
         if (ch.key==='D2'){
@@ -282,7 +287,7 @@ export function renderChannelTrace(ch, beats, cy, px, width){
     }
   });
   const path = `<path d="${buildContinuousPath(features, cy, width)}" fill="none" stroke="${ch.color}" stroke-width="1.6"/>`;
-  return path + overlays;
+  return path + overlays + stimOverlays;
 }
 
 export function buildSvg(beats, px, fixedDurationMs){
