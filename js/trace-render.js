@@ -17,18 +17,21 @@ export function qrsDurationMs(b){
   if (b.qrsCoincide) return 90;
   return (b.origin==='V' && !b.narrow) ? 130 : 70;
 }
-export function classifyRetrogradePOverlap(b){
-  // Estimulación ventricular con conducción V-A nodal: si la onda P retrógrada (ancho ±40 ms
-  // alrededor de b.ta) se superpone con el QRS estimulado -aunque sea parcialmente, no sólo si
-  // queda enteramente adentro- en el mundo real no se ve como P aparte, sólo la espiga de
-  // estimulación. Si el solapamiento cae en la mitad final del QRS deja una muesca negativa
-  // terminal (deformidad visible); si cae en la mitad inicial, se pierde sin dejar rastro.
-  if (b.origin !== 'V' || b.ta == null || b.tv == null) return 'none';
-  if (b.hiddenOnSurface || b.echoVisible) return 'none'; // ya manejadas aparte (vía accesoria, etc.)
+export function classifyPQrsOverlap(pCenter, b){
+  // Regla general: cualquier actividad auricular (onda P antero o retrógrada) que se superponga
+  // -aunque sea parcialmente, no sólo si queda enteramente adentro- con el QRS no se ve como P
+  // aparte en el ECG de superficie, sin importar el origen del latido. Si el solapamiento cae en
+  // la mitad final del QRS deja una muesca negativa terminal (deformidad visible); si cae en la
+  // mitad inicial, se pierde sin dejar rastro.
+  if (pCenter == null || b.tv == null) return 'none';
+  if (b.hiddenOnSurface) return 'none'; // ya manejada aparte (disociación AV, p. ej. TEJ)
   const qrsStart = b.tv, qrsDur = qrsDurationMs(b), qrsEnd = qrsStart + qrsDur;
-  const pStart = b.ta - 40, pEnd = b.ta + 40;
+  const pStart = pCenter - 40, pEnd = pCenter + 40;
   if (pEnd <= qrsStart || pStart >= qrsEnd) return 'none'; // sin superposición
-  return (b.ta >= qrsStart + qrsDur/2) ? 'second' : 'first';
+  return (pCenter >= qrsStart + qrsDur/2) ? 'second' : 'first';
+}
+export function classifyRetrogradePOverlap(b){
+  return classifyPQrsOverlap(b.ta, b);
 }
 export function terminalNotchFeat(x, cy, px){
   // Muesca terminal post-QRS: asoma la activación auricular retrógrada que quedó completamente
@@ -197,7 +200,9 @@ export function renderChannelTrace(ch, beats, cy, px, width){
         if (b.abnormalP) pInv = true;
         features.push(pWaveFeat(b.ta*px, cy, pInv, px));
       }
-      if (b.echoVisible) features.push(pWaveFeat((b.surfaceP ?? b.echoTa)*px, cy, true, px));
+      const echoPCenter = b.echoVisible ? (b.surfaceP ?? b.echoTa) : null;
+      const echoOverlap = classifyPQrsOverlap(echoPCenter, b);
+      if (b.echoVisible && echoOverlap==='none') features.push(pWaveFeat(echoPCenter*px, cy, true, px));
       if (b.tv!=null){
         const dSign = b.hasDelta ? deltaSignForLead(b.deltaPathway, ch.key) : null;
         if (b.fusionQRS){
@@ -217,7 +222,7 @@ export function renderChannelTrace(ch, beats, cy, px, width){
         } else {
           features.push(qrsFeat(b.tv*px, cy, qrsWideState(b), px));
         }
-        if (ch.key==='D2' && retroPOverlap==='second'){
+        if (ch.key==='D2' && (retroPOverlap==='second' || echoOverlap==='second')){
           features.push(terminalNotchFeat((b.tv + qrsDurationMs(b))*px, cy, px));
         }
         if (ch.key==='D2'){
