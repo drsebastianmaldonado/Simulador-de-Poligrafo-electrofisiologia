@@ -106,10 +106,16 @@ export function rebuildLap(){
   }
   document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
   refreshEcg12(beats);
+  // Si la vuelta nueva quedó más corta que la posición actual del cursor (p.ej. al pasar de un
+  // bucle sinusal largo a una secuencia de inducción corta), hay que encajarlo en el rango válido
+  // ANTES de dibujar el cursor — si no, el clip-path queda más ancho que el trazado nuevo entero y
+  // se revela todo de golpe (incluida la taquicardia) en vez de ir apareciendo con la barrida.
+  if (state.elapsedMs >= state.SWEEP_MS) state.elapsedMs = state.elapsedMs % state.SWEEP_MS;
   const mainScroll = document.getElementById('traceScrollMain');
   if (mainScroll) mainScroll.scrollLeft = 0;
   const ecgScroll = document.getElementById('traceScroll12');
   if (ecgScroll) ecgScroll.scrollLeft = 0;
+  updateCursor(state.elapsedMs);
   updateReadout(beats);
 }
 
