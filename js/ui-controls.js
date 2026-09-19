@@ -67,7 +67,9 @@ export function toggleStimulation(){
 }
 export function startStimulation(){
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
-  const wasAlreadyRunning = state.STIMULATING && state.playing;
+  // AVNRT_INDUCED también cuenta como "ya corriendo" aunque STIMULATING haya quedado en false (p.ej.
+  // tras un "Detener" que no llegó a cortar la taquicardia sostenida): seguir sin reiniciar el barrido.
+  const wasAlreadyRunning = (state.STIMULATING || state.AVNRT_INDUCED) && state.playing;
   if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE && !state.AVNRT_INDUCED){
     // Arranca limpio (vuelve a mostrar el tren completo antes de inducir) solo si no hay ya una
     // taquicardia sostenida — si la hay, "Estimular" la pacea con el ciclo actual (p.ej. para
@@ -134,7 +136,12 @@ export function stopStimulation(){
     const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30);
     if (!cutsIt){
       // La estimulación actual no alcanza para cortarla: la reentrada es autosostenida y sigue en
-      // taquicardia aunque se deje de pacear — no se toca ni se reinicia nada.
+      // taquicardia aunque se deje de pacear (AVNRT_INDUCED se mantiene, rebuildLap sigue mostrándola
+      // sin importar STIMULATING). Pero "Detener" tiene que dejar de comandar la estimulación, si no
+      // el botón queda trabado en "Detener" para siempre y nunca se puede volver a apretar "Estimular"
+      // con un ciclo más rápido para reintentar el corte.
+      state.STIMULATING = false;
+      rebuildLap();
       return;
     }
     // Si alcanza para cortarla: se aplica el corte YA, en el instante actual, sin reiniciar el
@@ -269,7 +276,7 @@ export function updateReadout(beats){
   const box = document.getElementById('readout');
   const mode = state.activeMode;
   const CTX = state.CTX;
-  if (!state.STIMULATING && (mode==='ASYNC' || mode==='SYNC')){
+  if (!state.STIMULATING && !state.AVNRT_INDUCED && (mode==='ASYNC' || mode==='SYNC')){
     box.textContent = 'Ritmo sinusal basal, sin estimulación (75/min). Programá el protocolo y apretá "Estimular" para empezar.';
     return;
   }

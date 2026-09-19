@@ -20,7 +20,7 @@ export function currentLapBeats(){
   // Beats para el estado actual, SIN tocar CURRENT_PX/SWEEP_MS (para reusar en el panel de 12 derivaciones
   // sin desincronizar la escala que ya está aplicada al polígrafo principal).
   const p = getPacingParams();
-  if (!state.STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
+  if (!state.STIMULATING && !state.AVNRT_INDUCED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   if (state.OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   if (p.mode==='SYNC' && state.AVNRT_INDUCED && !state.SENSING_MODE){
     return resolveSustainedTachyBeats(p);
@@ -49,8 +49,8 @@ export function rebuildLap(){
   const screenMs = containerW / state.CURRENT_PX;
   const loopMs = Math.max(screenMs, CONTINUOUS_MIN_MS);
   let beats;
-  if (!state.STIMULATING && (p.mode==='ASYNC' || p.mode==='SYNC')){
-    // Sin estimulación activada: solo ritmo sinusal basal.
+  if (!state.STIMULATING && !state.AVNRT_INDUCED && (p.mode==='ASYNC' || p.mode==='SYNC')){
+    // Sin estimulación activada (y sin taquicardia sostenida en curso): solo ritmo sinusal basal.
     state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);
   } else if (state.OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')){
