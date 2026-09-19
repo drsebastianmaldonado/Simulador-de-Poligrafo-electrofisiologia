@@ -113,11 +113,14 @@ export function stopStimulation(){
     const inInductionWindow = isAtrialSiteNow && s1IndEnabled && canAutoInduce
       && p.s1cl <= s1IndCL && p.s1cl >= wenckAntPt;
     if (inInductionWindow){
-      // Este es el momento del corte: el último S1 entregado dispara la reentrada. STIMULATING
-      // sigue en true a propósito — así, cuando la vuelta de pantalla termine y se reinicie, el
-      // próximo redibujado sigue mostrando la taquicardia sostenida en vez de volver a sinusal.
+      // Este es el momento del corte: el último S1 entregado dispara la reentrada. AVNRT_INDUCED
+      // (seteado dentro de buildInductionAtInstant) es lo que hace que el próximo redibujado siga
+      // mostrando la taquicardia sostenida en vez de volver a sinusal — STIMULATING ya no necesita
+      // quedar en true para eso, así que se suelta a false acá mismo: "Detener" deja el botón listo
+      // para volver a decir "Estimular" de una sola vez, sin un segundo click extra.
       const stopAt = state.elapsedMs;
       const beats = buildInductionAtInstant(p, state.SWEEP_MS + 500, stopAt);
+      state.STIMULATING = false;
       document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
       refreshEcg12(beats);
       updateReadout(beats);
