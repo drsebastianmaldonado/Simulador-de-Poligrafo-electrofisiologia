@@ -8,7 +8,7 @@ import {
 import { buildEntrainmentBeats } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
 import { refreshEcg12 } from './ecg12-render.js';
-import { renderAll, pause, rebuildLap } from './playback.js';
+import { renderAll, pause, play, rebuildLap } from './playback.js';
 
 // Qué canal de la columna de etiquetas corresponde a cada sitio de estimulación real — los
 // bipolos intermedios del CS (CS 3-4, 5-6, 7-8) y el proximal de ablación son solo de registro,
@@ -66,10 +66,11 @@ export function toggleStimulation(){
   if (state.STIMULATING) stopStimulation(); else startStimulation();
 }
 export function startStimulation(){
-  // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros programados.
-  // AVNRT_INDUCED también cuenta como "ya corriendo" aunque STIMULATING haya quedado en false (p.ej.
-  // tras un "Detener" que no llegó a cortar la taquicardia sostenida): seguir sin reiniciar el barrido.
-  const wasAlreadyRunning = (state.STIMULATING || state.AVNRT_INDUCED) && state.playing;
+  // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros
+  // programados, SIEMPRE continuando el mismo registro en curso (nunca reinicia el barrido a cero
+  // ni el cursor): como en un polígrafo real, "Estimular" no borra lo que ya se venía grabando, ni
+  // siquiera la primera vez que se aprieta tras un "Detener" — solo agrega la estimulación desde
+  // el instante actual en adelante.
   if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.SENSING_MODE && !state.AVNRT_INDUCED){
     // Arranca limpio (vuelve a mostrar el tren completo antes de inducir) solo si no hay ya una
     // taquicardia sostenida — si la hay, "Estimular" la pacea con el ciclo actual (p.ej. para
@@ -81,13 +82,8 @@ export function startStimulation(){
   // botón — tocar el campo sin apretar "Estimular" no debe arrancar una sobreestimulación por su cuenta.
   state.APPLIED_S1CL = getPacingParams().s1cl;
   state.STIMULATING = true;
-  if (wasAlreadyRunning){
-    // Ya se estaba estimulando y animando (p.ej. una taquicardia sostenida en curso): "Estimular"
-    // solo aplica el nuevo ciclo comprometido, sin reiniciar el polígrafo ni el cursor.
-    rebuildLap();
-  } else {
-    renderAll();
-  }
+  rebuildLap();
+  play(); // por si estaba pausado (p.ej. tras "Pausar"); si ya estaba reproduciendo, no hace nada.
 }
 export function stopStimulation(){
   // Termina la estimulación en curso y vuelve al ritmo sinusal basal.
@@ -183,11 +179,11 @@ export function stopStimulation(){
     // TRNAV/TRAV ya inducida en el modelo (sin protocolo de sobreestimulación disponible acá, a
     // diferencia de Asincrónica/Sincrónica: acá se corta con una maniobra de entrainment o
     // extraestímulo His-refractario, no con "Estimular"/"Detener"): "Detener" termina la
-    // demostración y vuelve a ritmo sinusal basal, igual que si se reeligiera el modelo desde cero.
+    // demostración y vuelve a ritmo sinusal basal, sin reiniciar el barrido (mismo registro continuo).
     // Antes esta rama no existía y el botón quedaba trabado en "Detener estimulación" para siempre.
     state.AVNRT_INDUCED = false;
     state.STIMULATING = false;
-    renderAll();
+    rebuildLap();
     return;
   }
   // Ningún otro caso (fuera de Asincrónica/Sincrónica/Modelos) tiene un "tren" que detener de
