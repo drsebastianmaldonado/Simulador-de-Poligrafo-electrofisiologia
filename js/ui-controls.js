@@ -172,11 +172,26 @@ export function stopStimulation(){
     updateReadout(beats);
     return;
   }
-  // Ningún otro caso tiene un "tren" que detener de verdad (p.ej. los modelos simples como
-  // Auricular, Flutter, JET, Ventricular, que se muestran como ritmo continuo sin protocolo de
-  // sobreestimulación): "Detener" no hace nada acá — no reinicia el polígrafo ni corta la
-  // taquicardia, y tampoco toca STIMULATING (para que el próximo redibujado natural no revierta a
-  // sinusal por su cuenta).
+  if (state.activeMode==='MODELS'){
+    if (!state.AVNRT_INDUCED){
+      // Ritmos continuos simples (Auricular, Flutter, JET, Ventricular) o TRNAV/TRAV del modelo que
+      // todavía no se indujeron con el tren S1S1+S2: no hay un "tren" que detener de verdad acá
+      // — no reinicia el polígrafo, y tampoco toca STIMULATING (para que el próximo redibujado
+      // natural no revierta a sinusal por su cuenta).
+      return;
+    }
+    // TRNAV/TRAV ya inducida en el modelo (sin protocolo de sobreestimulación disponible acá, a
+    // diferencia de Asincrónica/Sincrónica: acá se corta con una maniobra de entrainment o
+    // extraestímulo His-refractario, no con "Estimular"/"Detener"): "Detener" termina la
+    // demostración y vuelve a ritmo sinusal basal, igual que si se reeligiera el modelo desde cero.
+    // Antes esta rama no existía y el botón quedaba trabado en "Detener estimulación" para siempre.
+    state.AVNRT_INDUCED = false;
+    state.STIMULATING = false;
+    renderAll();
+    return;
+  }
+  // Ningún otro caso (fuera de Asincrónica/Sincrónica/Modelos) tiene un "tren" que detener de
+  // verdad: "Detener" no hace nada acá.
 }
 export function onSensingModeChange(){
   state.SENSING_MODE = document.querySelector('input[name=sensingMode]:checked').value === 'sensed';
