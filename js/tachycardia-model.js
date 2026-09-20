@@ -725,6 +725,30 @@ export function buildInductionAtInstant(p, upToMs, stopAtMs){
     }
     return beats;
   }
+  if (state.INDUCE_TARGET === 'AT'){
+    // Foco automático/ectópico auricular: a diferencia de la reentrada (que salta de golpe al
+    // ciclo sostenido), el foco se "calienta" progresivamente — el ciclo se acorta latido a latido
+    // desde el ciclo del propio tren S1S1 hasta el ciclo propio del foco (tachyCL), en vez de
+    // aparecer de una vez a ciclo fijo. Es el rasgo clásico que distingue una TA automática de una
+    // reentrada (TRNAV/TRAV saltan; una TA automática "calienta").
+    const lastCL = lastBeat.CI || sustainedCL;
+    const warmupBeats = 5;
+    let prevTa = lastBeat.ta;
+    for (let i=1; i<=warmupBeats; i++){
+      const cl = lastCL + (sustainedCL - lastCL) * (i/warmupBeats);
+      const ta = prevTa + cl;
+      const ah = computeAH(cl) ?? CTX.AH0, th = ta+ah, tv = th+CTX.hv0;
+      beats.push({origin:'A', label:'TA', isPaced:false, isExtra:false, CI:cl, ta, ah, th, tv, abnormalP:true});
+      prevTa = ta;
+    }
+    let t = prevTa + sustainedCL;
+    while (t < upToMs){
+      const ah = computeAH(sustainedCL) ?? CTX.AH0, th = t+ah, tv = th+CTX.hv0;
+      beats.push({origin:'A', label:'TA', isPaced:false, isExtra:false, CI:sustainedCL, ta:t, ah, th, tv, abnormalP:true});
+      t += sustainedCL;
+    }
+    return beats;
+  }
   const sustainedAH = Math.max(30, sustainedCL - CTX.hv0);
   lastBeat.echoTa = lastBeat.tv + 35; // el eco del último S1 (VA simultáneo, dentro del QRS) dispara el reingreso
   delete lastBeat.blocked;

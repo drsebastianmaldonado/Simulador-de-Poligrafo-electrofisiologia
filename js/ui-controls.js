@@ -106,7 +106,7 @@ export function stopStimulation(){
     const s1IndEnabled = document.getElementById('s1InductionEnabled').checked;
     const s1IndCL = +document.getElementById('s1InductionCL').value;
     const wenckAntPt = +document.getElementById('wenckAnt').value;
-    const canAutoInduce = (state.INDUCE_TARGET==='AVNRT') || (state.INDUCE_TARGET==='AVRT' && !state.PREEXCITATION_ENABLED);
+    const canAutoInduce = (state.INDUCE_TARGET==='AVNRT') || (state.INDUCE_TARGET==='AVRT' && !state.PREEXCITATION_ENABLED) || state.INDUCE_TARGET==='AT';
     // Ventana de inducción: desde el ciclo S1S1 programado hasta el punto de Wenckebach anterógrado
     // (mientras la conducción antegrada siga 1:1, aunque decremental, se puede inducir la reentrada;
     // recién al llegar al Wenckebach anterógrado cambia la física y deja de aplicar esta inducción).
@@ -132,7 +132,7 @@ export function stopStimulation(){
     const wasType = state.INDUCED_TYPE;
     // La misma condición que ya decide, mientras se sigue estimulando, si el ciclo actual alcanza
     // para cortar la reentrada (rebuildLap) o si esta sigue sostenida pese al pacing.
-    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30);
+    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) || (wasType==='AT' && p.s1cl <= state.AVNRT_TCL - 20);
     if (!cutsIt){
       // La estimulación actual no alcanza para cortarla: la reentrada es autosostenida y sigue en
       // taquicardia aunque se deje de pacear (AVNRT_INDUCED se mantiene, rebuildLap sigue mostrándola
@@ -263,6 +263,18 @@ export function selectModelTachy(type){
     document.getElementById('tachyCL').value = 300;
     document.getElementById('s1InductionEnabled').checked = true;
     document.getElementById('s1InductionCL').value = 320;
+  } else if (type==='AT'){
+    // Foco automático/ectópico: no hay doble vía nodal que "saltar" (sin salto de vía), se induce
+    // parando dentro de la ventana S1S1 — igual mecanismo de disparo que TRNAV/TRAV, pero el
+    // resultado "calienta" progresivamente en vez de saltar de golpe (ver buildInductionAtInstant).
+    state.INDUCE_TARGET = 'AT';
+    document.getElementById('s2InduceLabel').textContent = 'TAE';
+    document.getElementById('jumpEnabled').checked = false;
+    document.getElementById('tachyCL').value = 300;
+    document.getElementById('s1InductionEnabled').checked = true;
+    document.getElementById('s1InductionCL').value = 380;
+    state.activeMode = 'ASYNC';
+    document.querySelector('input[name=mode][value=ASYNC]').checked = true;
   }
   updateModelButtons();
   updateModeVisibility();
@@ -328,8 +340,12 @@ export function updateReadout(beats){
   }
   if (mode==='ASYNC' && state.AVNRT_INDUCED){
     // Muestra el estado según el ciclo REALMENTE comprometido (APPLIED_S1CL) — no el que esté
-    // escrito ahora mismo en el campo si todavía no se volvió a apretar "Estimular".
-    box.innerHTML = `<strong>TRNAV inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(state.AVNRT_TCL)} ms). Programá un Ciclo S1 ≥20 ms más rápido y apretá "Estimular" para intentar cortarla (Wenckebach hasta 50 ms, 2:1 más allá).`;
+    // escrito ahora mismo en el campo si todavía no se volvió a apretar "Estimular". El label y el
+    // detalle del intento de corte dependen del tipo realmente inducido (TRNAV/TRAV/TAE) — antes
+    // esto decía siempre "TRNAV", incluso estando inducida una TRAV o (ahora) una TAE.
+    const indLabel = {AVNRT:'TRNAV', AVRT:'TRAV', AT:'TAE'}[state.INDUCED_TYPE] || state.INDUCED_TYPE;
+    const cutDetail = state.INDUCED_TYPE==='AVNRT' ? ' (Wenckebach hasta 50 ms, 2:1 más allá)' : '';
+    box.innerHTML = `<strong>${indLabel} inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(state.AVNRT_TCL)} ms). Programá un Ciclo S1 ≥20 ms más rápido y apretá "Estimular" para intentar cortarla${cutDetail}.`;
     return;
   }
   if (mode==='MODELS'){
