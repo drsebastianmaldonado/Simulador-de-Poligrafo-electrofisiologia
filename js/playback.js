@@ -6,7 +6,7 @@ import {
   buildOneSyncCycle, buildAsyncLapBeats, buildTachyBeats, buildAVNRTInduction,
   resolveSustainedTachyBeats,
 } from './tachycardia-model.js';
-import { buildEntrainmentBeats, buildHisRefractoryExtrastim } from './maneuvers.js';
+import { buildEntrainmentBeats, buildHisRefractoryExtrastim, buildAtrialExtrastimJunctional } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
 import { refreshEcg12 } from './ecg12-render.js';
 import { updateReadout } from './ui-controls.js';
@@ -22,6 +22,12 @@ export function currentLapBeats(){
   const p = getPacingParams();
   if (!state.STIMULATING && !state.AVNRT_INDUCED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
   if (state.OVERDRIVE_TERMINATED && (p.mode==='ASYNC' || p.mode==='SYNC')) return buildSinusOnlyBeats(state.SWEEP_MS + 500);
+  // El extraestímulo auricular a la refractariedad juncional (TRNAV vs JET) aplica apenas la TRNAV
+  // esté realmente inducida (sin importar el modo activo — "TRNAV típica" induce vía Asincrónica,
+  // no se queda en modo Modelos) o, para JET, con el modelo activo y ya estimulando.
+  if (state.ACTIVE_MANIOBRA==='atrialExtra' && ((state.AVNRT_INDUCED && state.INDUCED_TYPE==='AVNRT') || (p.mode==='MODELS' && p.tachyType==='JET' && state.STIMULATING))){
+    return buildAtrialExtrastimJunctional(p, state.SWEEP_MS + 500).beats;
+  }
   if (p.mode==='SYNC' && state.AVNRT_INDUCED && !state.SENSING_MODE){
     return resolveSustainedTachyBeats(p);
   }
@@ -49,7 +55,12 @@ export function rebuildLap(){
   const screenMs = containerW / state.CURRENT_PX;
   const loopMs = Math.max(screenMs, CONTINUOUS_MIN_MS);
   let beats;
-  if (!state.STIMULATING && !state.AVNRT_INDUCED && (p.mode==='ASYNC' || p.mode==='SYNC')){
+  if (state.ACTIVE_MANIOBRA==='atrialExtra' && ((state.AVNRT_INDUCED && state.INDUCED_TYPE==='AVNRT') || (p.mode==='MODELS' && p.tachyType==='JET' && state.STIMULATING))){
+    // Extraestímulo auricular a la refractariedad juncional (TRNAV vs JET): aplica apenas la TRNAV
+    // esté realmente inducida, sin importar el modo activo ("TRNAV típica" induce vía Asincrónica).
+    state.SWEEP_MS = loopMs;
+    beats = buildAtrialExtrastimJunctional(p, state.SWEEP_MS + 500).beats;
+  } else if (!state.STIMULATING && !state.AVNRT_INDUCED && (p.mode==='ASYNC' || p.mode==='SYNC')){
     // Sin estimulación activada (y sin taquicardia sostenida en curso): solo ritmo sinusal basal.
     state.SWEEP_MS = loopMs;
     beats = buildSinusOnlyBeats(state.SWEEP_MS + 500);

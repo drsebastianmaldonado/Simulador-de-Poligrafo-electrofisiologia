@@ -5,7 +5,7 @@ import {
   buildTachyCutAtInstant, buildAsyncCutAtInstant, buildInductionAtInstant,
   buildOverdriveTermination, buildTachyBeats, buildAVRTOverdriveCapture,
 } from './tachycardia-model.js';
-import { buildEntrainmentBeats } from './maneuvers.js';
+import { buildEntrainmentBeats, buildHisRefractoryExtrastim, buildAtrialExtrastimJunctional } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
 import { refreshEcg12 } from './ecg12-render.js';
 import { renderAll, pause, play, rebuildLap } from './playback.js';
@@ -282,6 +282,26 @@ export function updateModelButtons(){
       btn.style.fontWeight = selected ? '600' : '500';
     }
   });
+  // Maniobras diagnósticas: solo tienen sentido sobre TRNAV/TRAV (encarrilamiento, extraestímulo
+  // ventricular) o TRNAV/JET (extraestímulo auricular a la refractariedad juncional).
+  const type = state.MODEL_TACHY_TYPE;
+  const maniobraRow = document.getElementById('maniobraRow');
+  // "TRNAV típica" induce vía modo Asincrónica (no se queda en modo Modelos), así que esto se
+  // basa en MODEL_TACHY_TYPE (persiste sin importar el modo activo), no en state.activeMode.
+  const showManiobras = (type==='AVNRT' || type==='AVRT' || type==='JET');
+  if (maniobraRow) maniobraRow.style.display = showManiobras ? 'flex' : 'none';
+  document.querySelectorAll('.avnrt-avrt-maniobra').forEach(btn => {
+    btn.style.display = (type==='AVNRT' || type==='AVRT') ? 'inline-block' : 'none';
+  });
+  document.querySelectorAll('.avnrt-jet-maniobra').forEach(btn => {
+    btn.style.display = (type==='AVNRT' || type==='JET') ? 'inline-block' : 'none';
+  });
+  document.querySelectorAll('.maniobra-btn').forEach(btn => {
+    const selected = (btn.dataset.maniobra || null) === state.ACTIVE_MANIOBRA;
+    btn.style.background = selected ? '#7fd4f0' : 'var(--panel2)';
+    btn.style.color = selected ? '#0a2233' : 'var(--text)';
+    btn.style.fontWeight = selected ? '600' : '500';
+  });
 }
 
 export function updateReadout(beats){
@@ -292,6 +312,18 @@ export function updateReadout(beats){
   const CTX = state.CTX;
   if (!state.STIMULATING && !state.AVNRT_INDUCED && (mode==='ASYNC' || mode==='SYNC')){
     box.textContent = 'Ritmo sinusal basal, sin estimulación (75/min). Programá el protocolo y apretá "Estimular" para empezar.';
+    return;
+  }
+  if (state.AVNRT_INDUCED && state.INDUCED_TYPE==='AVNRT' && state.ACTIVE_MANIOBRA==='atrialExtra'){
+    // "TRNAV típica" induce vía Asincrónica (mode!=='MODELS'), así que esto se chequea antes del
+    // mensaje genérico de abajo para que la maniobra se pueda leer sin importar el modo activo.
+    const p = getPacingParams();
+    const r = buildAtrialExtrastimJunctional(p, 1);
+    if (r.affected){
+      box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: activó la vía lenta (AH ${Math.round(r.ah)} ms) y <strong>reinició</strong> el reloj de la taquicardia → compatible con <strong>TRNAV</strong>.`;
+    } else {
+      box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: bloqueó en el nodo AV (por debajo del PRE, ≈${CTX.ERP} ms), sin efecto sobre la taquicardia. Probá con un acoplamiento mayor.`;
+    }
     return;
   }
   if (mode==='ASYNC' && state.AVNRT_INDUCED){
@@ -309,6 +341,30 @@ export function updateReadout(beats){
         return;
       }
       box.innerHTML = `<strong>Entrainment desde VD</strong> — TCL basal ${Math.round(r.TCL)} ms · CL de estimulación ${Math.round(r.entrainCL)} ms (programado por vos) · QRS estimulado puro (misma morfología angosta) · VA estirado 30 ms durante la estimulación · tren de 6 latidos · PPI ${Math.round(r.PPI)} ms → <strong>PPI − TCL = ${Math.round(r.ppiMinusTCL)} ms</strong> (${r.ppiMinusTCL>125 ? 'compatible' : 'no compatible'}: debe dar > 125 ms).`;
+      return;
+    }
+    if ((state.MODEL_TACHY_TYPE==='AVNRT' || state.MODEL_TACHY_TYPE==='AVRT') && state.ACTIVE_MANIOBRA==='hisRefr'){
+      const p = getPacingParams();
+      const r = buildHisRefractoryExtrastim(p, 1);
+      if (!r.ready){
+        box.innerHTML = `Programá arriba, en "Polígrafo": Sitio = VD apical o basal, para entregar el extraestímulo con His refractario.`;
+        return;
+      }
+      const label = r.prematurity < 20 ? 'no captura (dentro del período refractario ventricular)'
+        : (r.prematurity <= (state.MODEL_TACHY_TYPE==='AVRT' ? 40 : 30) ? 'fusión manifiesta' : (r.prematurity <= 60 ? 'QRS puro, sigue conduciendo' : 'corta la taquicardia sin conducir a la aurícula'));
+      box.innerHTML = `<strong>Extraestímulo ventricular His-refractario</strong> — prematurez ${Math.round(r.prematurity)} ms → ${label}.`;
+      return;
+    }
+    if (state.MODEL_TACHY_TYPE==='JET' && state.ACTIVE_MANIOBRA==='atrialExtra'){
+      const p = getPacingParams();
+      const r = buildAtrialExtrastimJunctional(p, 1);
+      box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: sin ningún efecto sobre el ritmo ventricular (foco de la unión disociado de la aurícula) → compatible con <strong>JET</strong>.`;
+      return;
+    }
+    if (state.MODEL_TACHY_TYPE==='AVNRT' && state.ACTIVE_MANIOBRA==='atrialExtra'){
+      // Caso borde: MODEL_TACHY_TYPE=AVNRT en modo Modelos sin haber inducido todavía vía
+      // Asincrónica (la rama de arriba, antes del "if (mode==='MODELS')", cubre el caso real).
+      box.innerHTML = 'Primero inducí la TRNAV con el tren S1S1 + S2 para poder aplicar el extraestímulo auricular.';
       return;
     }
     if (state.MODEL_TACHY_TYPE==='AVNRT'){

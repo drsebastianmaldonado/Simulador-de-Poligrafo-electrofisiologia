@@ -4,6 +4,7 @@
 import { buildLabels12, toggleEcg12 } from './ecg12-render.js';
 import { buildLabelsAndLegend, updateModeVisibility, toggleStimulation, onSensingModeChange, onModeRadioChange, onPreexcitationChange, onCycleParamChange, applyS1InductionCLChange, applyS2InduceField, selectModelTachy, stepInput, selectSiteFromChannel, updateChannelSiteHighlight } from './ui-controls.js';
 import { renderAll, playPause, restart, rewind10s } from './playback.js';
+import { selectManiobra } from './maneuvers.js';
 
 Object.assign(window, {
   stepInput,
@@ -21,6 +22,7 @@ Object.assign(window, {
   rewind10s,
   toggleEcg12,
   selectSiteFromChannel,
+  selectManiobra,
 });
 
 buildLabelsAndLegend();

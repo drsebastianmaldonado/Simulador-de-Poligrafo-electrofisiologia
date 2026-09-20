@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { PATHWAY_CONFIGS } from './constants.js';
-import { makeAtrialBeat, makeSustainedTachyBeat } from './physio-model.js';
+import { makeAtrialBeat, makeSustainedTachyBeat, computeAH } from './physio-model.js';
 import { renderAll } from './playback.js';
 
 export function buildHisRefractoryExtrastim(p, upToMs){
@@ -126,10 +126,78 @@ export function buildEntrainmentBeats(p, upToMs){
   }
   return {beats, TCL, entrainCL, PPI, ppiMinusTCL, ready:true};
 }
+export function buildAtrialExtrastimJunctional(p, upToMs){
+  // Extraestímulo auricular con refractariedad juncional ("PAC a la refractariedad del His"):
+  // distingue TRNAV de taquicardia ectópica de la unión (JET) — ver maniobra 6 de
+  // docs/maniobras-diagnosticas-svt.md. Los primeros latidos son sensados (la taquicardia
+  // sostenida tal cual); después se entrega un único extraestímulo auricular (S2), acoplado
+  // desde la última activación auricular.
+  //  - TRNAV: el extra alcanza a activar la vía lenta (mismo computeAH decremental que un S2
+  //    normal) y REINICIA el reloj de la taquicardia — el próximo His se adelanta/atrasa según el
+  //    AH resultante (o queda sin efecto si cae dentro del período refractario auricular).
+  //  - JET: el foco de la unión está disociado de la aurícula — el extra no tiene ningún efecto
+  //    sobre el ritmo ventricular, que sigue exactamente en su ciclo propio.
+  const CTX = state.CTX;
+  const type = state.MODEL_TACHY_TYPE;
+  const s2 = +document.getElementById('atrialExtraS2').value;
+  const beats = [];
+  const nSensed = 4;
+
+  if (type === 'JET'){
+    const cycleMs = p.tachyCL;
+    const jetBeats = [];
+    let t = 0;
+    while (t < upToMs){ jetBeats.push({origin:'V', label:'JET', isPaced:false, isExtra:false, CI:cycleMs, tv:t, blocked:'VA', narrow:true}); t += cycleMs; }
+    const sinusCLUsed = CTX.sinusCL * 1.037;
+    const hiddenAt = (ta) => jetBeats.some(v => ta >= v.tv - 5 && ta <= v.tv + 75);
+    let ts = 0, i = 0;
+    while (i < nSensed){
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts, hiddenOnSurface:hiddenAt(ts)});
+      ts += sinusCLUsed; i++;
+    }
+    const lastTs = ts - sinusCLUsed;
+    const stimTime = lastTs + s2;
+    beats.push({origin:'A', label:'APB', isPaced:true, isExtra:true, CI:s2, ta:stimTime, stimTime, hiddenOnSurface:hiddenAt(stimTime)});
+    let ts2 = stimTime + CTX.sinusCL;
+    while (ts2 < upToMs){
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts2, hiddenOnSurface:hiddenAt(ts2)});
+      ts2 += sinusCLUsed;
+    }
+    beats.push(...jetBeats);
+    return {beats, type, s2, affected:false, ready:true};
+  }
+
+  // TRNAV
+  const TCL = state.AVNRT_TCL || p.tachyCL;
+  let th = 0;
+  for (let i=0; i<nSensed; i++){ beats.push(makeSustainedTachyBeat(th, 'AVNRT', 'TRNAV')); th += TCL; }
+  const lastTh = th - TCL;
+  const stimTime = lastTh + s2;
+  const ah = computeAH(s2); // reutiliza el mismo modelo de conducción decremental por la vía lenta que un S2 normal
+  let affected;
+  if (ah == null){
+    beats.push({origin:'A', label:'APB', isPaced:true, isExtra:true, CI:s2, ta:stimTime, stimTime, blocked:'AV'});
+    let th2 = lastTh + TCL;
+    while (th2 < upToMs){ beats.push(makeSustainedTachyBeat(th2, 'AVNRT', 'TRNAV')); th2 += TCL; }
+    affected = false;
+  } else {
+    const resetTh = stimTime + ah;
+    beats.push({origin:'A', label:'APB', isPaced:true, isExtra:true, CI:s2, ta:stimTime, stimTime, ah, th:resetTh, tv:resetTh+CTX.hv0, echoTa:(resetTh+CTX.hv0)+35});
+    let th2 = resetTh + TCL;
+    while (th2 < upToMs){ beats.push(makeSustainedTachyBeat(th2, 'AVNRT', 'TRNAV')); th2 += TCL; }
+    affected = true;
+  }
+  return {beats, type, s2, ah, affected, ready:true};
+}
 export function selectManiobra(maniobra){
   state.ACTIVE_MANIOBRA = maniobra;
-  state.AVNRT_INDUCED = false; // realizar una maniobra termina el estado de "inducida permanente"
+  // Encarrilamiento y extraestímulo ventricular arman su propia secuencia sostenida, así que
+  // realizar esas maniobras termina el estado de "inducida permanente". El extraestímulo auricular
+  // es distinto: necesita saber si la TRNAV sigue realmente inducida para dar la respuesta correcta
+  // (la reinicia si lo está, no hace nada si el mecanismo es JET), así que no toca esta bandera.
+  if (maniobra !== 'atrialExtra') state.AVNRT_INDUCED = false;
   document.getElementById('entrainParamsRow').style.display = (maniobra==='entrainment') ? 'flex' : 'none';
   document.getElementById('hisRefrParamsRow').style.display = (maniobra==='hisRefr') ? 'flex' : 'none';
+  document.getElementById('atrialExtraParamsRow').style.display = (maniobra==='atrialExtra') ? 'flex' : 'none';
   renderAll();
 }
