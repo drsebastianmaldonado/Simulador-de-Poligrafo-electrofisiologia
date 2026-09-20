@@ -149,6 +149,22 @@
       <div class="field"><label>Wenckebach anterógrado (ms)</label><input type="number" id="wenckAnt" value="240" step="10"></div>
       <div class="field"><label>Wenckebach retrógrado (ms)</label><input type="number" id="wenckRetro" value="240" step="10"></div>
       <div class="field">
+        <label>Isoproterenol</label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--text); background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="isoproterenolEnabled" style="accent-color:var(--accent);" onchange="renderAll()"> Activar
+        </label>
+      </div>
+      <div class="field">
+        <label>Acelera el CL sinusal hasta (%)</label>
+        <div class="stepper-row">
+          <input type="number" id="isoproterenolPct" min="0" max="75" step="5" value="50" onchange="renderAll()">
+          <div class="stepper-btns">
+            <button type="button" class="stepbtn" onclick="stepInput('isoproterenolPct',5)">▲</button>
+            <button type="button" class="stepbtn" onclick="stepInput('isoproterenolPct',-5)">▼</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
         <label>Salto de vía</label>
         <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--text); background:var(--panel2); border:1px solid var(--line); padding:5px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;">
           <input type="checkbox" id="jumpEnabled" style="accent-color:var(--accent);"> Activar

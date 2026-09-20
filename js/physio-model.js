@@ -82,7 +82,8 @@ export function makeAtrialBeat(refTime, CI, isPaced, label, isExtra){
   if (ah==null){ beat.blocked='AV'; return beat; }
   beat.ah = ah;
   beat.th = refTime + ah;
-  if (state.PREEXCITATION_ENABLED && !isPaced && CI >= (+document.getElementById('pathwayAnteERP').value)){
+  const pathwayAnteERP = +document.getElementById('pathwayAnteERP').value - (CTX.isoproterenolEnabled ? 50 : 0);
+  if (state.PREEXCITATION_ENABLED && !isPaced && CI >= pathwayAnteERP){
     // Preexcitación manifiesta: la vía activa el ventrículo antes que el sistema His-Purkinje —
     // HV negativo (-10 ms) y onda delta, con polaridad según la localización de la vía.
     beat.tv = beat.th + 15;
@@ -105,7 +106,7 @@ export function makeVentricularBeat(refTime, CI, isPaced, label, isExtra){
   beat.tv = refTime;
   if (CTX.site==='AblD') beat.narrow = true; // captura directa del His: QRS angosto, a diferencia de la captura miocárdica (ancha) desde VD apical/basal
   if (state.MODEL_TACHY_TYPE==='AVRT'){
-    const pathwayRetroERP = +document.getElementById('pathwayRetroERP').value;
+    const pathwayRetroERP = +document.getElementById('pathwayRetroERP').value - (CTX.isoproterenolEnabled ? 50 : 0);
     if (CI < pathwayRetroERP){
       // La vía no llega a conducir en sentido retrógrado a este ciclo: sin retroconducción por
       // ella (puede seguir habiendo conducción V-A por el nodo AV, según el modelo general).
