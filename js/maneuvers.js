@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { PATHWAY_CONFIGS } from './constants.js';
 import { makeAtrialBeat, makeSustainedTachyBeat, computeAH } from './physio-model.js';
 import { renderAll } from './playback.js';
+import { jetRetro11 } from './tachycardia-model.js';
 
 export function buildHisRefractoryExtrastim(p, upToMs){
   // Extraestímulo con His refractario: los primeros 8 latidos son SENSADOS (no estimulados) —
@@ -143,6 +144,21 @@ export function buildAtrialExtrastimJunctional(p, upToMs){
   const beats = [];
   const nSensed = 4;
 
+  if (type === 'JET' && jetRetro11()){
+    // Retroconducción 1:1: se ve como una TRNAV, pero el foco de la unión no se reinicia con el
+    // extraestímulo auricular — el ritmo V/A acoplado sigue en su ciclo, y el extra queda como un
+    // latido auricular aislado (por eso esta maniobra la distingue de la TRNAV).
+    const cycleMs = state.AVNRT_TCL || p.tachyCL;
+    let th = 0;
+    while (th < upToMs){
+      const tv = th + CTX.hv0;
+      beats.push({origin:'A', label:'JET', isPaced:false, isExtra:false, CI:cycleMs, th, tv, echoTa:tv+35, noAtrialSpread:true});
+      th += cycleMs;
+    }
+    const stimTime = 3*cycleMs + s2;
+    beats.push({origin:'A', label:'APB', isPaced:true, isExtra:true, CI:s2, ta:stimTime, stimTime});
+    return {beats, type, s2, affected:false, ready:true, retro11:true};
+  }
   if (type === 'JET'){
     const cycleMs = p.tachyCL;
     const jetBeats = [];

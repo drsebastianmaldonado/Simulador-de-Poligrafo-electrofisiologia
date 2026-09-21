@@ -31,7 +31,8 @@ export function getPhysio(){
     VERP: isoproterenolEnabled ? verpBase - 50 : verpBase,
     wenckAnt: +document.getElementById('wenckAnt').value,
     wenckRetro: +document.getElementById('wenckRetro').value,
-    jumpEnabled: document.getElementById('jumpEnabled').checked,
+    // Con el modelo JET seleccionado no se puede inducir TRNAV: el salto de vía queda anulado.
+    jumpEnabled: document.getElementById('jumpEnabled').checked && state.MODEL_TACHY_TYPE !== 'JET',
     jumpCL: +document.getElementById('jumpCL').value,
     jumpRetroEnabled: document.getElementById('jumpRetroEnabled').checked,
     jumpRetroCL: +document.getElementById('jumpRetroCL').value,

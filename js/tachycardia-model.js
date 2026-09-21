@@ -8,6 +8,11 @@ import {
   buildSinusOnlyBeats, makeSustainedTachyBeat,
 } from './physio-model.js';
 
+export function jetRetro11(){
+  const el = document.getElementById('jetVAMode');
+  return !!el && el.value === 'retro11';
+}
+
 export function buildSensedS2Cycle(startTime, p){
   // Sensado: sin tren de S1 — se sensa el ritmo real del momento (la taquicardia sostenida si la
   // hay, o el sinusal si no) y se entrega un único S2 desde el sitio elegido, sin resetear nada —
@@ -245,6 +250,17 @@ export function buildTachyBeats(type, cycleMs, upToMs){
   } else if (type==='JET'){
     // Taquicardia ectópica de la unión: foco automático juncional, QRS angosto, con disociación
     // A-V (la aurícula sigue su ritmo sinusal propio, habitualmente más lento que la unión).
+    // Con "Retroconducción 1:1" cada latido de la unión activa la aurícula en forma simultánea con
+    // el V (VA≈0), o sea que imita una TRNAV típica — por eso hace falta una maniobra para distinguirlas.
+    if (jetRetro11()){
+      let th = 0;
+      while (th < upToMs){
+        const tv = th + CTX.hv0;
+        beats.push({origin:'A', label:'JET', isPaced:false, isExtra:false, CI:cycleMs, th, tv, echoTa:tv+35, noAtrialSpread:true});
+        th += cycleMs;
+      }
+      return beats;
+    }
     let t = 0;
     const jetBeats = [];
     while (t < upToMs){
@@ -747,6 +763,38 @@ export function buildInductionAtInstant(p, upToMs, stopAtMs){
       beats.push({origin:'A', label:'TA', isPaced:false, isExtra:false, CI:sustainedCL, ta:t, ah, th, tv, abnormalP:true});
       t += sustainedCL;
     }
+    return beats;
+  }
+  if (state.INDUCE_TARGET === 'JET'){
+    // Foco automático de la unión (solo con isoproterenol): igual que la TAE, se "calienta" desde el
+    // ciclo del tren hasta su ciclo propio. Con retroconducción 1:1 cada latido activa V y A juntos
+    // (imita TRNAV); con disociación VA la aurícula sigue su ritmo sinusal aparte.
+    const lastCL = lastBeat.CI || sustainedCL;
+    const warmupBeats = 5;
+    const clAt = i => lastCL + (sustainedCL - lastCL) * (Math.min(i, warmupBeats)/warmupBeats);
+    if (jetRetro11()){
+      let th = lastBeat.th ?? (lastBeat.tv - CTX.hv0);
+      for (let i=1; th < upToMs; i++){
+        const cl = clAt(i);
+        th += cl;
+        const tv = th + CTX.hv0;
+        beats.push({origin:'A', label:'JET', isPaced:false, isExtra:false, CI:cl, th, tv, echoTa:tv+35, noAtrialSpread:true});
+      }
+      return beats;
+    }
+    const jetBeats = [];
+    let tv = lastBeat.tv;
+    for (let i=1; tv < upToMs; i++){
+      const cl = clAt(i);
+      tv += cl;
+      jetBeats.push({origin:'V', label:'JET', isPaced:false, isExtra:false, CI:cl, tv, blocked:'VA', narrow:true});
+    }
+    const sinusStep = CTX.sinusCL * 1.037;
+    for (let ts = lastBeat.ta + CTX.sinusCL; ts < upToMs; ts += sinusStep){
+      const hiddenOnSurface = jetBeats.some(v => ts >= v.tv - 5 && ts <= v.tv + 75);
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts, hiddenOnSurface});
+    }
+    beats.push(...jetBeats);
     return beats;
   }
   const sustainedAH = Math.max(30, sustainedCL - CTX.hv0);

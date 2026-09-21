@@ -57,7 +57,15 @@
         <button type="button" class="stepbtn model-btn other-tachy-btn" data-model="VT" onclick="selectModelTachy('VT')" style="padding:7px 12px; font-size:.78rem;">Ventricular (QRS ancho)</button>
       </div>
     </div>
-    <div class="field" id="maniobraRow" style="display:none; flex-basis:100%;">
+    <div class="field" id="jetParamsRow" style="display:none; flex-basis:100%;">
+      <label style="color:var(--dim); font-size:.72rem;">JET — se induce parando dentro de la ventana S1S1, siempre con isoproterenol (se activa solo y queda bloqueado). No se puede inducir TRNAV con este modelo.</label>
+      <label>Conducción VA durante la JET</label>
+      <select id="jetVAMode" onchange="renderAll()">
+        <option value="dissociated">Disociación VA (aurícula sinusal independiente)</option>
+        <option value="retro11">Retroconducción 1:1 (simula una TRNAV)</option>
+      </select>
+    </div>
+    <div class="field" id="maniobraRow"style="display:none; flex-basis:100%;">
       <label style="color:var(--dim); font-size:.68rem;">Maniobra diagnóstica</label>
       <div class="radiogroup" style="flex-wrap:wrap;">
         <button type="button" class="stepbtn maniobra-btn" data-maniobra="" onclick="selectManiobra(null)" style="padding:6px 11px; font-size:.74rem;">Ninguna</button>

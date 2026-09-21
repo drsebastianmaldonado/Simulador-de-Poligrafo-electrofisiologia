@@ -106,7 +106,8 @@ export function stopStimulation(){
     const s1IndEnabled = document.getElementById('s1InductionEnabled').checked;
     const s1IndCL = +document.getElementById('s1InductionCL').value;
     const wenckAntPt = +document.getElementById('wenckAnt').value;
-    const canAutoInduce = (state.INDUCE_TARGET==='AVNRT') || (state.INDUCE_TARGET==='AVRT' && !state.PREEXCITATION_ENABLED) || state.INDUCE_TARGET==='AT';
+    const canAutoInduce = (state.INDUCE_TARGET==='AVNRT' && state.MODEL_TACHY_TYPE!=='JET') || (state.INDUCE_TARGET==='AVRT' && !state.PREEXCITATION_ENABLED) || state.INDUCE_TARGET==='AT'
+      || (state.INDUCE_TARGET==='JET' && document.getElementById('isoproterenolEnabled').checked);
     // Ventana de inducción: desde el ciclo S1S1 programado hasta el punto de Wenckebach anterógrado
     // (mientras la conducción antegrada siga 1:1, aunque decremental, se puede inducir la reentrada;
     // recién al llegar al Wenckebach anterógrado cambia la física y deja de aplicar esta inducción).
@@ -132,7 +133,7 @@ export function stopStimulation(){
     const wasType = state.INDUCED_TYPE;
     // La misma condición que ya decide, mientras se sigue estimulando, si el ciclo actual alcanza
     // para cortar la reentrada (rebuildLap) o si esta sigue sostenida pese al pacing.
-    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) || (wasType==='AT' && p.s1cl <= state.AVNRT_TCL - 20);
+    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) || ((wasType==='AT' || wasType==='JET') && p.s1cl <= state.AVNRT_TCL - 20);
     if (!cutsIt){
       // La estimulación actual no alcanza para cortarla: la reentrada es autosostenida y sigue en
       // taquicardia aunque se deje de pacear (AVNRT_INDUCED se mantiene, rebuildLap sigue mostrándola
@@ -275,6 +276,25 @@ export function selectModelTachy(type){
     document.getElementById('s1InductionCL').value = 380;
     state.activeMode = 'ASYNC';
     document.querySelector('input[name=mode][value=ASYNC]').checked = true;
+  } else if (type==='JET'){
+    // JET automática: se induce parando dentro de la ventana S1S1, siempre con isoproterenol. No hay
+    // doble vía nodal, así que no se puede inducir TRNAV mientras este modelo esté seleccionado.
+    state.INDUCE_TARGET = 'JET';
+    document.getElementById('s2InduceLabel').textContent = 'JET';
+    document.getElementById('tachyCL').value = 300;
+    document.getElementById('s1InductionEnabled').checked = true;
+    document.getElementById('s1InductionCL').value = 380;
+    state.activeMode = 'ASYNC';
+    document.querySelector('input[name=mode][value=ASYNC]').checked = true;
+  }
+  const iso = document.getElementById('isoproterenolEnabled');
+  const jump = document.getElementById('jumpEnabled');
+  if (type==='JET'){
+    iso.checked = true; iso.disabled = true;   // la JET siempre se induce con isoproterenol
+    jump.checked = false; jump.disabled = true; // y no se puede inducir TRNAV
+  } else {
+    if (iso.disabled){ iso.disabled = false; iso.checked = false; }
+    jump.disabled = false;
   }
   updateModelButtons();
   updateModeVisibility();
@@ -302,6 +322,8 @@ export function updateModelButtons(){
   // basa en MODEL_TACHY_TYPE (persiste sin importar el modo activo), no en state.activeMode.
   const showManiobras = (type==='AVNRT' || type==='AVRT' || type==='JET');
   if (maniobraRow) maniobraRow.style.display = showManiobras ? 'flex' : 'none';
+  const jetRow = document.getElementById('jetParamsRow');
+  if (jetRow) jetRow.style.display = (type==='JET') ? 'flex' : 'none';
   document.querySelectorAll('.avnrt-avrt-maniobra').forEach(btn => {
     btn.style.display = (type==='AVNRT' || type==='AVRT') ? 'inline-block' : 'none';
   });
@@ -326,12 +348,14 @@ export function updateReadout(beats){
     box.textContent = 'Ritmo sinusal basal, sin estimulación (75/min). Programá el protocolo y apretá "Estimular" para empezar.';
     return;
   }
-  if (state.AVNRT_INDUCED && state.INDUCED_TYPE==='AVNRT' && state.ACTIVE_MANIOBRA==='atrialExtra'){
-    // "TRNAV típica" induce vía Asincrónica (mode!=='MODELS'), así que esto se chequea antes del
-    // mensaje genérico de abajo para que la maniobra se pueda leer sin importar el modo activo.
+  if (state.AVNRT_INDUCED && (state.INDUCED_TYPE==='AVNRT' || state.INDUCED_TYPE==='JET') && state.ACTIVE_MANIOBRA==='atrialExtra'){
+    // "TRNAV típica" y JET inducen vía Asincrónica (mode!=='MODELS'), así que esto se chequea antes
+    // del mensaje genérico de abajo para que la maniobra se pueda leer sin importar el modo activo.
     const p = getPacingParams();
     const r = buildAtrialExtrastimJunctional(p, 1);
-    if (r.affected){
+    if (r.type==='JET'){
+      box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: ${r.retro11 ? 'aunque la retroconducción 1:1 imita una TRNAV, ' : ''}sin ningún efecto sobre el foco de la unión (no se reinicia) → compatible con <strong>JET</strong>.`;
+    } else if (r.affected){
       box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: activó la vía lenta (AH ${Math.round(r.ah)} ms) y <strong>reinició</strong> el reloj de la taquicardia → compatible con <strong>TRNAV</strong>.`;
     } else {
       box.innerHTML = `<strong>Extraestímulo auricular a la refractariedad juncional</strong> — acoplamiento ${Math.round(r.s2)} ms: bloqueó en el nodo AV (por debajo del PRE, ≈${CTX.ERP} ms), sin efecto sobre la taquicardia. Probá con un acoplamiento mayor.`;
@@ -343,7 +367,7 @@ export function updateReadout(beats){
     // escrito ahora mismo en el campo si todavía no se volvió a apretar "Estimular". El label y el
     // detalle del intento de corte dependen del tipo realmente inducido (TRNAV/TRAV/TAE) — antes
     // esto decía siempre "TRNAV", incluso estando inducida una TRAV o (ahora) una TAE.
-    const indLabel = {AVNRT:'TRNAV', AVRT:'TRAV', AT:'TAE'}[state.INDUCED_TYPE] || state.INDUCED_TYPE;
+    const indLabel = {AVNRT:'TRNAV', AVRT:'TRAV', AT:'TAE', JET:'JET'}[state.INDUCED_TYPE] || state.INDUCED_TYPE;
     const cutDetail = state.INDUCED_TYPE==='AVNRT' ? ' (Wenckebach hasta 50 ms, 2:1 más allá)' : '';
     box.innerHTML = `<strong>${indLabel} inducida — sostenida en forma permanente</strong> (ciclo ${Math.round(state.AVNRT_TCL)} ms). Programá un Ciclo S1 ≥20 ms más rápido y apretá "Estimular" para intentar cortarla${cutDetail}.`;
     return;
