@@ -66,6 +66,7 @@ export function toggleStimulation(){
   if (state.STIMULATING) stopStimulation(); else startStimulation();
 }
 export function startStimulation(){
+  state.JET_REVERTED_MSG = false;
   // Activa (o reaplica) el protocolo seleccionado — Asincrónica o Sincrónica — con los parámetros
   // programados, SIEMPRE continuando el mismo registro en curso (nunca reinicia el barrido a cero
   // ni el cursor): como en un polígrafo real, "Estimular" no borra lo que ya se venía grabando, ni
@@ -227,6 +228,7 @@ export function onPreexcitationChange(){
   onCycleParamChange();
 }
 export function selectModelTachy(type){
+  state.JET_REVERTED_MSG = false;
   state.activeMode = 'MODELS';
   state.MODEL_TACHY_TYPE = type;
   state.ACTIVE_MANIOBRA = null;
@@ -344,6 +346,10 @@ export function updateReadout(beats){
   const box = document.getElementById('readout');
   const mode = state.activeMode;
   const CTX = state.CTX;
+  if (state.JET_REVERTED_MSG && !state.AVNRT_INDUCED){
+    box.innerHTML = '<strong>La JET revirtió espontáneamente a ritmo sinusal</strong> (foco automático: no se sostiene indefinidamente). Volvé a inducirla para repetir las maniobras.';
+    return;
+  }
   if (!state.STIMULATING && !state.AVNRT_INDUCED && (mode==='ASYNC' || mode==='SYNC')){
     box.textContent = 'Ritmo sinusal basal, sin estimulación (75/min). Programá el protocolo y apretá "Estimular" para empezar.';
     return;

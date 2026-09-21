@@ -37,6 +37,9 @@ export const state = {
   // "Estimular", no al editar el campo Ciclo S1 en vivo. Así, tocar el campo sin volver a apretar
   // el botón no arranca por su cuenta una sobreestimulación sobre la taquicardia ya inducida.
   APPLIED_S1CL: 300,
+  JET_INDUCED_AT: 0,
+  JET_SUSTAINED_MS: 0,      // tiempo real (sin escalar por velocidad) que lleva sostenida la JET inducida
+  JET_REVERTED_MSG: false,  // avisa en el readout que la JET revirtió sola a sinusal
 
   // Preexcitación manifiesta (WPW) en ritmo sinusal.
   PREEXCITATION_ENABLED: false,

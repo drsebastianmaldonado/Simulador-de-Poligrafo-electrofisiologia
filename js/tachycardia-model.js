@@ -769,6 +769,9 @@ export function buildInductionAtInstant(p, upToMs, stopAtMs){
     // Foco automático de la unión (solo con isoproterenol): igual que la TAE, se "calienta" desde el
     // ciclo del tren hasta su ciclo propio. Con retroconducción 1:1 cada latido activa V y A juntos
     // (imita TRNAV); con disociación VA la aurícula sigue su ritmo sinusal aparte.
+    state.JET_SUSTAINED_MS = 0;
+    state.JET_INDUCED_AT = performance.now();
+    state.JET_REVERTED_MSG = false;
     const lastCL = lastBeat.CI || sustainedCL;
     const warmupBeats = 5;
     const clAt = i => lastCL + (sustainedCL - lastCL) * (Math.min(i, warmupBeats)/warmupBeats);
