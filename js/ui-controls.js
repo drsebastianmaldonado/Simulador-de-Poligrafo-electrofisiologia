@@ -8,7 +8,7 @@ import {
 import { buildEntrainmentBeats, buildHisRefractoryExtrastim, buildAtrialExtrastimJunctional } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
 import { refreshEcg12 } from './ecg12-render.js';
-import { renderAll, pause, play, rebuildLap } from './playback.js';
+import { renderAll, pause, play, rebuildLap, showBeats } from './playback.js';
 
 // Qué canal de la columna de etiquetas corresponde a cada sitio de estimulación real — los
 // bipolos intermedios del CS (CS 3-4, 5-6, 7-8) y el proximal de ablación son solo de registro,
@@ -83,7 +83,7 @@ export function startStimulation(){
   // botón — tocar el campo sin apretar "Estimular" no debe arrancar una sobreestimulación por su cuenta.
   state.APPLIED_S1CL = getPacingParams().s1cl;
   state.STIMULATING = true;
-  rebuildLap();
+  rebuildLap({ splice: true });
   play(); // por si estaba pausado (p.ej. tras "Pausar"); si ya estaba reproduciendo, no hace nada.
 }
 export function stopStimulation(){
@@ -124,9 +124,7 @@ export function stopStimulation(){
       const stopAt = state.elapsedMs;
       const beats = buildInductionAtInstant(p, state.SWEEP_MS + 500, stopAt);
       state.STIMULATING = false;
-      document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
-      refreshEcg12(beats);
-      updateReadout(beats);
+      showBeats(beats, { splice: true });
       return;
     }
   }
@@ -143,7 +141,7 @@ export function stopStimulation(){
       // el botón queda trabado en "Detener" para siempre y nunca se puede volver a apretar "Estimular"
       // con un ciclo más rápido para reintentar el corte.
       state.STIMULATING = false;
-      rebuildLap();
+      rebuildLap({ splice: true });
       return;
     }
     // Si alcanza para cortarla: se aplica el corte YA, en el instante actual, sin reiniciar el
@@ -155,9 +153,7 @@ export function stopStimulation(){
     const beats = (wasType==='AVNRT')
       ? buildOverdriveTermination(p, state.SWEEP_MS + 500, state.AVNRT_TCL, stopAt)
       : buildTachyCutAtInstant(wasType, state.AVNRT_TCL, state.SWEEP_MS + 500, stopAt);
-    document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
-    refreshEcg12(beats);
-    updateReadout(beats);
+    showBeats(beats, { splice: true });
     return;
   }
   if (state.activeMode==='ASYNC' || state.activeMode==='SYNC'){
@@ -169,9 +165,7 @@ export function stopStimulation(){
     state.AVNRT_INDUCED = false;
     state.OVERDRIVE_TERMINATED = false;
     const beats = buildAsyncCutAtInstant(p, state.SWEEP_MS + 500, stopAt);
-    document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
-    refreshEcg12(beats);
-    updateReadout(beats);
+    showBeats(beats, { splice: true });
     return;
   }
   if (state.activeMode==='MODELS'){
@@ -189,7 +183,7 @@ export function stopStimulation(){
     // Antes esta rama no existía y el botón quedaba trabado en "Detener estimulación" para siempre.
     state.AVNRT_INDUCED = false;
     state.STIMULATING = false;
-    rebuildLap();
+    rebuildLap({ splice: true });
     return;
   }
   // Ningún otro caso (fuera de Asincrónica/Sincrónica/Modelos) tiene un "tren" que detener de
@@ -491,7 +485,8 @@ export function onCycleParamChange(){
   // no se fuerza — pero mientras se está reproduciendo (por ejemplo, ajustando la velocidad de
   // sobreestimulación en vivo), lo aplicamos ya mismo, sin resetear el cursor ni reiniciar el polígrafo.
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true; // cambiar S2 a propósito SÍ cuenta como una nueva entrega
-  if (state.SENSING_MODE || !state.playing){ renderAll(); return; } // Sensado: el S2 es un evento único —
-                                                                     // siempre se vuelve a mostrar completo desde el inicio.
+  // El trazado ya registrado se conserva: el cambio rige desde el instante actual en adelante.
+  if (state.LAP_BEATS && state.elapsedMs > 0){ rebuildLap({ splice: true }); return; }
+  if (state.SENSING_MODE || !state.playing){ renderAll(); return; }
   rebuildLap();
 }

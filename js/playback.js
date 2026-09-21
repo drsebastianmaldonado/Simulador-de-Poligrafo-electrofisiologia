@@ -47,7 +47,7 @@ export function currentLapBeats(){
 // trazado queda con scroll horizontal (barra inferior) y hay margen de sobra para "10 s atrás".
 const CONTINUOUS_MIN_MS = 20000;
 
-export function rebuildLap(){
+export function rebuildLap(opts){
   const p = getPacingParams();
   state.CTX = Object.assign(getPhysio(), {s1cl: p.s1cl, site: p.site});
   const containerW = getContainerWidth();
@@ -115,6 +115,38 @@ export function rebuildLap(){
     state.SWEEP_MS = inducing ? Math.max(loopMs, p.s1cl*8 + p.tachyCL*3) : loopMs;
     beats = buildAsyncLapBeats(p);
   }
+  showBeats(beats, opts);
+}
+
+// Instante de comienzo de un latido (el primer evento que tenga) — para saber de qué lado de un
+// corte cae.
+function beatKey(b){
+  const ts = [b.stimTime, b.ta, b.th, b.tv, b.egmTa].filter(v => typeof v === 'number');
+  return ts.length ? Math.min(...ts) : null;
+}
+// Empalma el trazado ya dibujado (todo lo anterior al instante actual, tal cual estaba) con el
+// que corresponde al estado nuevo (todo lo posterior) — así estimular, detener o cambiar S1/S2 no
+// borra ni redibuja lo que ya se registró: el registro sigue continuo. Para no duplicar latidos
+// pegados al corte, un latido nuevo debe empezar al menos 120 ms después del último viejo del
+// mismo origen (aurícula / ventrículo).
+function spliceBeats(oldBeats, newBeats, cut){
+  const past = oldBeats.filter(b => { const k = beatKey(b); return k != null && k < cut; });
+  const lastKey = {};
+  past.forEach(b => { lastKey[b.origin] = Math.max(lastKey[b.origin] ?? -Infinity, beatKey(b)); });
+  const fut = newBeats.filter(b => {
+    const k = beatKey(b);
+    return k != null && k >= Math.max(cut, (lastKey[b.origin] ?? -Infinity) + 120);
+  });
+  return past.concat(fut);
+}
+// Dibuja los latidos y sincroniza cursor, ECG de 12 derivaciones y panel de estado. Con
+// opts.splice conserva lo ya registrado (ver spliceBeats) y no mueve el scroll.
+export function showBeats(beats, opts){
+  const canSplice = opts && opts.splice && state.LAP_BEATS && state.LAP_PX === state.CURRENT_PX
+    && state.SWEEP_MS > state.elapsedMs;
+  if (canSplice) beats = spliceBeats(state.LAP_BEATS, beats, state.elapsedMs);
+  state.LAP_BEATS = beats;
+  state.LAP_PX = state.CURRENT_PX;
   document.getElementById('traceHost').innerHTML = buildSvg(beats, state.CURRENT_PX, state.SWEEP_MS);
   refreshEcg12(beats);
   // Si la vuelta nueva quedó más corta que la posición actual del cursor (p.ej. al pasar de un
@@ -122,10 +154,12 @@ export function rebuildLap(){
   // ANTES de dibujar el cursor — si no, el clip-path queda más ancho que el trazado nuevo entero y
   // se revela todo de golpe (incluida la taquicardia) en vez de ir apareciendo con la barrida.
   if (state.elapsedMs >= state.SWEEP_MS) state.elapsedMs = state.elapsedMs % state.SWEEP_MS;
-  const mainScroll = document.getElementById('traceScrollMain');
-  if (mainScroll) mainScroll.scrollLeft = 0;
-  const ecgScroll = document.getElementById('traceScroll12');
-  if (ecgScroll) ecgScroll.scrollLeft = 0;
+  if (!canSplice){
+    const mainScroll = document.getElementById('traceScrollMain');
+    if (mainScroll) mainScroll.scrollLeft = 0;
+    const ecgScroll = document.getElementById('traceScroll12');
+    if (ecgScroll) ecgScroll.scrollLeft = 0;
+  }
   updateCursor(state.elapsedMs);
   updateReadout(beats);
 }
