@@ -96,6 +96,7 @@ export function stopStimulation(){
     state.SENSED_CYCLE_TOKEN++;
     state.STIMULATING = false;
     pause();
+    setStimBtn(); // sin esto el botón quedaba en rojo ("Detener") aunque ya no se estuviera estimulando
     return;
   }
   if ((state.activeMode==='ASYNC' || state.activeMode==='SYNC') && !state.AVNRT_INDUCED && !state.OVERDRIVE_TERMINATED){
