@@ -83,6 +83,7 @@ export function startStimulation(){
   // botón — tocar el campo sin apretar "Estimular" no debe arrancar una sobreestimulación por su cuenta.
   state.APPLIED_S1CL = getPacingParams().s1cl;
   state.STIMULATING = true;
+  if (state.SENSING_MODE){ renderAll(); return; } // ver onCycleParamChange: el S2 sensado se muestra desde el inicio del ciclo
   rebuildLap({ splice: true });
   play(); // por si estaba pausado (p.ej. tras "Pausar"); si ya estaba reproduciendo, no hace nada.
 }
@@ -486,7 +487,11 @@ export function onCycleParamChange(){
   // sobreestimulación en vivo), lo aplicamos ya mismo, sin resetear el cursor ni reiniciar el polígrafo.
   if (state.SENSING_MODE) state.SENSED_S2_FRESH = true; // cambiar S2 a propósito SÍ cuenta como una nueva entrega
   // El trazado ya registrado se conserva: el cambio rige desde el instante actual en adelante.
+  // Excepción: en Sensado el S2 es un evento único que se acopla tras 8 latidos sensados desde el
+  // inicio de la vuelta — empalmar en medio lo dejaba fuera del trazado, así que se vuelve a mostrar
+  // el ciclo completo desde el inicio.
+  if (state.SENSING_MODE){ renderAll(); return; }
   if (state.LAP_BEATS && state.elapsedMs > 0){ rebuildLap({ splice: true }); return; }
-  if (state.SENSING_MODE || !state.playing){ renderAll(); return; }
+  if (!state.playing){ renderAll(); return; }
   rebuildLap();
 }
