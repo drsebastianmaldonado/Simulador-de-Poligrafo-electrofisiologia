@@ -135,7 +135,7 @@ export function stopStimulation(){
     const wasType = state.INDUCED_TYPE;
     // La misma condición que ya decide, mientras se sigue estimulando, si el ciclo actual alcanza
     // para cortar la reentrada (rebuildLap) o si esta sigue sostenida pese al pacing.
-    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) || ((wasType==='AT' || wasType==='JET') && p.s1cl <= state.AVNRT_TCL - 20);
+    const cutsIt = (wasType==='AVNRT' && p.s1cl <= state.AVNRT_TCL - 20) || (wasType==='AVRT' && p.s1cl < state.AVNRT_TCL - 30) || (wasType==='AT' && p.s1cl <= state.AVNRT_TCL - 20); // la JET no se corta por sobreestimulación: al parar sigue
     if (!cutsIt){
       // La estimulación actual no alcanza para cortarla: la reentrada es autosostenida y sigue en
       // taquicardia aunque se deje de pacear (AVNRT_INDUCED se mantiene, rebuildLap sigue mostrándola
@@ -347,6 +347,10 @@ export function updateReadout(beats){
   const box = document.getElementById('readout');
   const mode = state.activeMode;
   const CTX = state.CTX;
+  if (state.AVNRT_INDUCED && state.INDUCED_TYPE==='JET' && state.STIMULATING && !state.SENSING_MODE && state.APPLIED_S1CL < state.AVNRT_TCL){
+    box.innerHTML = `<strong>Estimulación auricular sobre JET</strong> — S1 ${Math.round(state.APPLIED_S1CL)} ms, más rápido que la JET (${Math.round(state.AVNRT_TCL)} ms): la aurícula queda capturada y se <strong>disocia</strong> del ventrículo, que sigue en el ciclo de la JET. Al detener la estimulación la JET continúa.`;
+    return;
+  }
   if (state.JET_REVERTED_MSG && !state.AVNRT_INDUCED){
     box.innerHTML = '<strong>La JET revirtió espontáneamente a ritmo sinusal</strong> (foco automático: no se sostiene indefinidamente). Volvé a inducirla para repetir las maniobras.';
     return;

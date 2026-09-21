@@ -616,7 +616,27 @@ export function buildAVRTOverdriveCapture(p, upToMs){
   while (ts < upToMs){ beats.push(makeAtrialBeat(ts, CTX.sinusCL, false, 'Sinus')); ts += CTX.sinusCL; }
   return beats;
 }
+export function buildJetAtrialPacingBeats(upToMs){
+  // Estimulación auricular (más rápida que la JET) durante una JET inducida: el foco de la unión es
+  // independiente de la aurícula, así que la aurícula queda capturada a su propio ritmo estimulado
+  // y el ventrículo sigue en el ciclo de la JET — disociación VA, sin importar si en reposo tiene
+  // retroconducción 1:1. Al detener la estimulación la JET simplemente sigue (ver stopStimulation).
+  const cl = state.AVNRT_TCL, s1 = state.APPLIED_S1CL;
+  const beats = [];
+  const jetBeats = [];
+  for (let t=0; t < upToMs; t += cl) jetBeats.push({origin:'V', label:'JET', isPaced:false, isExtra:false, CI:cl, tv:t, blocked:'VA', narrow:true});
+  let i = 0;
+  for (let ta=0; ta < upToMs; ta += s1, i++){
+    const hiddenOnSurface = jetBeats.some(v => ta >= v.tv - 5 && ta <= v.tv + 75);
+    beats.push({origin:'A', label:'S1'+(i+1), isPaced:true, isExtra:false, CI:s1, ta, stimTime:ta, blocked:'AV', hiddenOnSurface});
+  }
+  beats.push(...jetBeats);
+  return beats;
+}
 export function resolveSustainedTachyBeats(p){
+  if (state.INDUCED_TYPE==='JET' && state.STIMULATING && state.APPLIED_S1CL < state.AVNRT_TCL){
+    return buildJetAtrialPacingBeats(state.SWEEP_MS + 500);
+  }
   // Hay una taquicardia sostenida (AVNRT_INDUCED). Se compara contra el ciclo REALMENTE
   // comprometido al presionar "Estimular" (APPLIED_S1CL) — no el valor que esté escrito ahora
   // mismo en el campo Ciclo S1, que puede haberse tocado sin volver a apretar el botón — y si
