@@ -3,7 +3,7 @@ import { CHANNELS } from './constants.js';
 import { getPacingParams } from './params.js';
 import {
   buildTachyCutAtInstant, buildAsyncCutAtInstant, buildInductionAtInstant,
-  buildOverdriveTermination, buildTachyBeats, buildAVRTOverdriveCapture,
+  buildOverdriveTermination, buildTachyBeats, buildAVRTOverdriveCapture, jetRetro11,
 } from './tachycardia-model.js';
 import { buildEntrainmentBeats, buildHisRefractoryExtrastim, buildAtrialExtrastimJunctional } from './maneuvers.js';
 import { buildSvg } from './trace-render.js';
@@ -348,6 +348,11 @@ export function updateReadout(beats){
   const CTX = state.CTX;
   if (state.JET_REVERTED_MSG && !state.AVNRT_INDUCED){
     box.innerHTML = '<strong>La JET revirtió espontáneamente a ritmo sinusal</strong> (foco automático: no se sostiene indefinidamente). Volvé a inducirla para repetir las maniobras.';
+    return;
+  }
+  if (state.AVNRT_INDUCED && state.INDUCED_TYPE==='JET' && state.SENSING_MODE){
+    const p = getPacingParams();
+    box.innerHTML = `<strong>Sensado sobre JET</strong> — S2 ${Math.round(p.ci2)} ms (${(p.site==='HRA'||p.site==='CSprox'||p.site==='CSdist') ? 'auricular' : 'ventricular'}): sin ningún efecto sobre el foco de la unión, que sigue en su ciclo propio (${Math.round(state.AVNRT_TCL)} ms)${jetRetro11() ? ', aunque la retroconducción 1:1 imite una TRNAV' : ''} → compatible con <strong>JET</strong>. El reloj de reversión espontánea queda en pausa mientras estás en Sensado.`;
     return;
   }
   if (!state.STIMULATING && !state.AVNRT_INDUCED && (mode==='ASYNC' || mode==='SYNC')){

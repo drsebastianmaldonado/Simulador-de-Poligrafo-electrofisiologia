@@ -188,6 +188,8 @@ function tick(ts){
     // La JET automática no dura para siempre: con disociación VA revierte sola a sinusal a los 5 s;
     // con retroconducción 1:1 (imita TRNAV) tarda 30 s, para dar tiempo a hacer maniobras.
     // reloj de pared: no depende de cuántos cuadros logre dibujar el navegador
+    // En Sensado (haciendo la maniobra con S2) el reloj se congela: no revierte mientras se opera.
+    if (state.SENSING_MODE) state.JET_INDUCED_AT = performance.now() - state.JET_SUSTAINED_MS;
     state.JET_SUSTAINED_MS = performance.now() - state.JET_INDUCED_AT;
     const limit = jetRetro11() ? 30000 : 5000;
     if (state.JET_SUSTAINED_MS >= limit){

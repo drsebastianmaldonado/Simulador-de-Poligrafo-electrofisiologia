@@ -13,7 +13,40 @@ export function jetRetro11(){
   return !!el && el.value === 'retro11';
 }
 
+function buildSensedJetCycle(startTime, p){
+  // Sensado sobre una JET inducida: los primeros latidos son la JET tal cual y se entrega un único
+  // S2 (auricular o ventricular). El foco de la unión no se reinicia con ese extraestímulo — en
+  // ninguno de los dos modos de conducción VA — así que el ritmo sigue en su ciclo propio.
+  const CTX = state.CTX;
+  const cl = state.AVNRT_TCL;
+  const isAtrialSite = (p.site==='HRA' || p.site==='CSprox' || p.site==='CSdist');
+  const nSensed = 8, nTotal = 16;
+  const beats = [];
+  let refTime; // instante de la última activación sensada, desde donde se acopla el S2
+  if (jetRetro11()){
+    for (let i=0; i<nTotal; i++){
+      const th = startTime + i*cl, tv = th + CTX.hv0;
+      beats.push({origin:'A', label:'JET', isPaced:false, isExtra:false, CI:cl, th, tv, echoTa:tv+35, noAtrialSpread:true});
+    }
+    refTime = isAtrialSite ? startTime + (nSensed-1)*cl : startTime + (nSensed-1)*cl + CTX.hv0;
+  } else {
+    const jetBeats = [];
+    for (let i=0; i<nTotal; i++) jetBeats.push({origin:'V', label:'JET', isPaced:false, isExtra:false, CI:cl, tv:startTime + i*cl, blocked:'VA', narrow:true});
+    const sinusStep = CTX.sinusCL * 1.037;
+    for (let ts = startTime; ts < startTime + nTotal*cl; ts += sinusStep){
+      const hiddenOnSurface = jetBeats.some(v => ts >= v.tv - 5 && ts <= v.tv + 75);
+      beats.push({origin:'A', label:'Sinus', isPaced:false, isExtra:false, CI:CTX.sinusCL, ta:ts, hiddenOnSurface});
+    }
+    beats.push(...jetBeats);
+    refTime = isAtrialSite ? startTime + Math.floor((nSensed*cl)/sinusStep)*sinusStep : startTime + (nSensed-1)*cl;
+  }
+  const stimTime = refTime + p.ci2;
+  if (isAtrialSite) beats.push({origin:'A', label:'S2', isPaced:true, isExtra:true, CI:p.ci2, ta:stimTime, stimTime});
+  else beats.push(makeVentricularBeat(stimTime, p.ci2, true, 'S2', true));
+  return {beats, nextTime: startTime + nTotal*cl + 500};
+}
 export function buildSensedS2Cycle(startTime, p){
+  if (state.AVNRT_INDUCED && state.INDUCED_TYPE==='JET') return buildSensedJetCycle(startTime, p);
   // Sensado: sin tren de S1 — se sensa el ritmo real del momento (la taquicardia sostenida si la
   // hay, o el sinusal si no) y se entrega un único S2 desde el sitio elegido, sin resetear nada —
   // después del S2 se continúa en ese mismo ritmo (si estaba en taquicardia, sigue en taquicardia).
